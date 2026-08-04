@@ -20,10 +20,10 @@ import {
   updateProfile,
 } from "../services/profileService";
 
-import Button from "../components/ui/Button";
-import Input from "../components/ui/Input";
 
 import { useAuth } from "../context/AuthContext";
+import Button from "../components/ui/Button";
+import Input from "../components/ui/Input";
 
 const sportsOptions = [
   "Fitness",
