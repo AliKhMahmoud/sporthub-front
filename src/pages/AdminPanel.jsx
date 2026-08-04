@@ -14,7 +14,7 @@ function AdminPanel() {
   useEffect(() => {
     loadRequests();
   }, []);
-
+  console.log("1");
   const loadRequests = async () => {
     try {
       const response = await getPendingCoachRequests();
