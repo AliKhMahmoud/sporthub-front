@@ -262,7 +262,6 @@ function Profile() {
     event.preventDefault();
 
     try {
-      // تجهيز FormData تماماً كما يتوقع الباك اند (Multer)
       const dataToSend = new FormData();
       dataToSend.append("name", formData.name);
       dataToSend.append("about", formData.about);
@@ -282,15 +281,28 @@ function Profile() {
         dataToSend.append("cover", coverFile);
       }
 
+      console.log("🚀 Sending profile update...");
+      
       const result = await updateProfile(dataToSend);
-      const updatedUser = result.user || result;
+      
+      console.log("✅ Full response:", result);
+      console.log("Data structure:", result.data);
+      console.log("Avatar:", result?.data?.avatar);
+      console.log("Cover:", result?.data?.cover);
 
+      const updatedUser = result.data || result.user || result;
+      
       login(updatedUser);
       setIsEditOpen(false);
+      console.log("✅ Profile saved successfully");
     } catch (error) {
-      console.error(error);
+      console.error("❌ Error saving profile:", error);
+      console.error("Error response:", error.response?.data);
     }
   };
+
+  
+
 
   return (
     <main className="max-w-7xl mx-auto px-6 py-12">
