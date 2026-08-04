@@ -1,0 +1,360 @@
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import {
+  Brain,
+  CheckCircle,
+  Clock,
+  Eye,
+  MessageSquare,
+  Save,
+  Trash2,
+  XCircle,
+} from "lucide-react";
+import {
+  getAiPlans,
+  updateAiPlanStatus,
+  saveAiPlanFeedback,
+  deleteAiPlan as deleteAiPlanService,
+} from "../services/aiTrainerService";
+function DashboardAiPlans() {
+  const [plans, setPlans] = useState([]);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [feedback, setFeedback] = useState("");
+
+  useEffect(() => {
+  const loadPlans = async () => {
+    try {
+      const data = await getAiPlans();
+      setPlans(data || []);
+    } catch (error) {
+      console.error(error);
+      setPlans([]);
+    }
+  };
+
+  loadPlans();
+}, []);
+
+  const totalPlans = plans.length;
+
+  const pendingPlans = plans.filter(
+    (plan) => plan.status === "Pending Coach Review"
+  ).length;
+
+  const approvedPlans = plans.filter(
+    (plan) => plan.status === "Approved"
+  ).length;
+
+  const rejectedPlans = plans.filter(
+    (plan) => plan.status === "Rejected"
+  ).length;
+
+  const stats = [
+    {
+      title: "Total Plans",
+      value: totalPlans,
+      icon: Brain,
+      color: "text-red-400",
+    },
+    {
+      title: "Pending",
+      value: pendingPlans,
+      icon: Clock,
+      color: "text-yellow-400",
+    },
+    {
+      title: "Approved",
+      value: approvedPlans,
+      icon: CheckCircle,
+      color: "text-emerald-400",
+    },
+    {
+      title: "Rejected",
+      value: rejectedPlans,
+      icon: XCircle,
+      color: "text-red-400",
+    },
+  ];
+
+  
+  const updateStatus = async (id, status) => {
+  try {
+    await updateAiPlanStatus(id, status);
+
+    const updatedPlans = await getAiPlans();
+    setPlans(updatedPlans || []);
+
+    if (selectedPlan?.id === id) {
+      setSelectedPlan({
+        ...selectedPlan,
+        status,
+      });
+    }
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+  const deletePlan = async (id) => {
+  try {
+    await deleteAiPlanService(id);
+
+    const updatedPlans = await getAiPlans();
+    setPlans(updatedPlans || []);
+
+    if (selectedPlan?.id === id) {
+      setSelectedPlan(null);
+    }
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+  const openPlan = (plan) => {
+    setSelectedPlan(plan);
+    setFeedback(plan.coachFeedback || "");
+  };
+
+  const saveFeedback = async () => {
+  if (!selectedPlan) return;
+
+  try {
+    await saveAiPlanFeedback(
+      selectedPlan.id,
+      feedback
+    );
+
+    const updatedPlans = await getAiPlans();
+    setPlans(updatedPlans || []);
+
+    setSelectedPlan({
+      ...selectedPlan,
+      coachFeedback: feedback,
+    });
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+  return (
+  <main className="p-10 text-white">
+    <motion.div
+      initial={{ opacity: 0, y: 25 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mb-10"
+    >
+      <span className="bg-red-500/10 text-red-400 px-4 py-2 rounded-full font-semibold">
+        AI Coach Review
+      </span>
+
+      <h1 className="text-5xl font-extrabold mt-6 mb-4">
+        AI Generated Plans
+      </h1>
+
+      <p className="text-slate-400 text-lg">
+        Review, approve, reject, delete, or add coach feedback to athlete
+        training plans.
+      </p>
+    </motion.div>
+
+    <section className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-10">
+      {stats.map((stat) => {
+        const Icon = stat.icon;
+
+        return (
+          <div
+            key={stat.title}
+            className="bg-slate-900 border border-slate-800 rounded-3xl p-6"
+          >
+            <Icon size={28} className={stat.color + " mb-4"} />
+
+            <p className="text-slate-400 mb-2">
+              {stat.title}
+            </p>
+
+            <h2 className="text-4xl font-bold">
+              {stat.value}
+            </h2>
+          </div>
+        );
+      })}
+    </section>
+
+    {plans.length === 0 ? (
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-10 text-center">
+        <Brain size={60} className="mx-auto text-red-400 mb-5" />
+
+        <h2 className="text-3xl font-bold mb-3">
+          No Plans Yet
+        </h2>
+
+        <p className="text-slate-400">
+          AI generated plans will appear here when athletes create them.
+        </p>
+      </div>
+    ) : (
+      <div className="space-y-6">
+        {plans.map((plan) => (
+          <motion.div
+            key={plan.id}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-slate-900 border border-slate-800 rounded-3xl p-6"
+          >
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+              <div>
+                <h2 className="text-2xl font-bold">
+                  {plan.athleteName}
+                </h2>
+
+                <p className="text-slate-400 mt-2">
+                  Goal: {plan.goal || "Not specified"}
+                </p>
+
+                <p className="text-slate-400">
+                  Sport: {plan.sport || "Not specified"}
+                </p>
+
+                <p className="text-slate-400">
+                  Condition: {plan.condition || "None"}
+                </p>
+
+                {plan.coachFeedback && (
+                  <p className="text-emerald-400 mt-3 flex items-center gap-2">
+                    <MessageSquare size={17} />
+                    Coach feedback added
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => openPlan(plan)}
+                  className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-3 rounded-xl transition"
+                >
+                  <Eye size={18} />
+                  View
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => updateStatus(plan.id, "Approved")}
+                  className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 px-4 py-3 rounded-xl transition"
+                >
+                  <CheckCircle size={18} />
+                  Approve
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => updateStatus(plan.id, "Rejected")}
+                  className="flex items-center gap-2 bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl transition"
+                >
+                  <XCircle size={18} />
+                  Reject
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deletePlan(plan.id)}
+                  className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 px-4 py-3 rounded-xl transition"
+                >
+                  <Trash2 size={18} />
+                  Delete
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <span
+                className={
+                  "px-4 py-2 rounded-full text-sm font-semibold " +
+                  (plan.status === "Approved"
+                    ? "bg-emerald-500/10 text-emerald-400"
+                    : plan.status === "Rejected"
+                    ? "bg-red-500/10 text-red-400"
+                    : "bg-yellow-500/10 text-yellow-400")
+                }
+              >
+                {plan.status}
+              </span>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    )}
+
+    {selectedPlan && (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-6 z-50">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-3xl w-full max-h-[85vh] overflow-y-auto">
+          <h2 className="text-3xl font-bold mb-2">
+            {selectedPlan.plan?.title || "AI Training Plan"}
+          </h2>
+
+          <p className="text-slate-400 mb-6">
+            Athlete: {selectedPlan.athleteName}
+          </p>
+
+          <div className="space-y-5">
+            {(selectedPlan.plan?.days || []).map((day) => (
+              <div
+                key={day.day}
+                className="bg-slate-800 rounded-2xl p-5"
+              >
+                <h3 className="text-xl font-bold mb-2">
+                  {day.day}
+                </h3>
+
+                <p className="text-slate-400 mb-4">
+                  {day.focus}
+                </p>
+
+                <ul className="space-y-2">
+                  {(day.exercises || []).map((exercise) => (
+                    <li key={exercise} className="text-slate-300">
+                      • {exercise}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8">
+            <h3 className="text-2xl font-bold mb-4">
+              Coach Feedback
+            </h3>
+
+            <textarea
+              value={feedback}
+              onChange={(event) => setFeedback(event.target.value)}
+              placeholder="Write your notes for this athlete..."
+              rows="5"
+              className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 outline-none focus:border-red-500 text-white"
+            />
+
+            <button
+              type="button"
+              onClick={saveFeedback}
+              className="mt-4 w-full bg-emerald-500 hover:bg-emerald-600 py-4 rounded-xl font-semibold transition flex items-center justify-center gap-2"
+            >
+              <Save size={18} />
+              Save Feedback
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setSelectedPlan(null)}
+            className="mt-4 w-full bg-red-500 hover:bg-red-600 py-4 rounded-xl font-semibold transition"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    )}
+  </main>
+);
+}
+
+export default DashboardAiPlans;
