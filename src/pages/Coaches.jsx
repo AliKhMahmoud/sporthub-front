@@ -30,16 +30,21 @@ function Coaches() {
   const [requests, setRequests] = useState([]);
   const [coaches, setCoaches] = useState([]);
 
-  useEffect(() => {
+useEffect(() => {
     const loadData = async () => {
       try {
         const coachesData = await getApprovedCoaches(selectedSport);
-        setCoaches(coachesData || []);
+        // التأكد من استخراج المصفوفة بدقة سواء كانت داخل .data أو مباشرة
+        const coachesList = coachesData?.data?.data || coachesData?.data || coachesData;
+        setCoaches(Array.isArray(coachesList) ? coachesList : []);
 
         const requestsData = await getMyTrainingRequests();
-        setRequests(requestsData.data || requestsData || []);
+        const requestsList = requestsData?.data?.data || requestsData?.data || requestsData;
+        setRequests(Array.isArray(requestsList) ? requestsList : []);
       } catch (error) {
         console.error("Error loading coaches or requests:", error);
+        setCoaches([]);
+        setRequests([]);
       }
     };
 
