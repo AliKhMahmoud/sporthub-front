@@ -28,8 +28,8 @@ function AuthProvider({ children }) {
           response?.user ||
           response;
 
-        // التأكد من وجود كائن مستخدم حقيقي ويحتوي على بيانات
-        if (currentUser && (currentUser.id || currentUser.email || currentUser.roleName)) {
+        // التأكد من وجود كائن مستخدم حقيقي ويحتوي على بيانات الـ id أو الـ email أو الـ role
+        if (currentUser && (currentUser.id || currentUser._id || currentUser.email || currentUser.role)) {
           setUser(currentUser);
         } else {
           setUser(null);
@@ -46,8 +46,13 @@ function AuthProvider({ children }) {
   }, []);
 
   const login = (userData) => {
-    // معالجة البيانات أثناء تسجيل الدخول المباشر
-    const actualUser = userData?.data?.user || userData?.data || userData?.user || userData;
+    // معالجة البيانات أثناء تسجيل الدخول المباشر والتأكد من استخراج الـ data بدقة
+    const actualUser = 
+      userData?.data?.user || 
+      userData?.data || 
+      userData?.user || 
+      userData;
+      
     setUser(actualUser);
   };
 
@@ -68,7 +73,7 @@ function AuthProvider({ children }) {
     }
   };
 
-  // فحص شامل ومحصن للأدمن والسوبر أدمن بناءً على الـ roleName أو الـ roleId أو الـ isAdmin
+  // فحص الأدمن
   const isAdmin =
     user?.roleName === "SuperAdmin" ||
     user?.roleName === "Admin" ||
@@ -78,12 +83,12 @@ function AuthProvider({ children }) {
     user?.role === "admin" ||
     user?.role === "SuperAdmin";
 
-  // فحص المدرب
+  // فحص المدرب المعتمد
   const isCoach =
     (user?.role === "coach" || user?.roleName === "Coach") &&
     user?.coachStatus === "approved";
 
-  // اللاعب (يتم تفعيله فقط إذا لم يكن أدمن ولم يكن مدرباً)
+  // اللاعب
   const isAthlete =
     !isAdmin &&
     !isCoach &&
@@ -92,11 +97,11 @@ function AuthProvider({ children }) {
       (!user?.role && !user?.roleName));
 
   const isPendingCoach =
-    user?.requestedRole === "coach" &&
+    (user?.role === "coach" || user?.requestedRole === "coach") &&
     user?.coachStatus === "pending";
 
   const isRejectedCoach =
-    user?.requestedRole === "coach" &&
+    (user?.role === "coach" || user?.requestedRole === "coach") &&
     user?.coachStatus === "rejected";
 
   return (

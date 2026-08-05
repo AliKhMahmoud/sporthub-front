@@ -25,7 +25,7 @@ const sportsOptions = [
 function Coaches() {
   const { user } = useAuth();
   const currentUserId = user?.id || user?._id;
-
+  console.log("Current User ID:", currentUserId);
   const [selectedSport, setSelectedSport] = useState("Fitness");
   const [requests, setRequests] = useState([]);
   const [coaches, setCoaches] = useState([]);
