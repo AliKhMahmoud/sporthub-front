@@ -9,7 +9,7 @@ import { useAuth } from "../context/AuthContext";
 function Register() {
   const navigate = useNavigate();
   const { login } = useAuth();
-
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
   const [sportsOptions, setSportsOptions] = useState([]);
   const [formData, setFormData] = useState({
     name: "",
@@ -32,13 +32,12 @@ function Register() {
   useEffect(() => {
     const fetchSports = async () => {
       try {
-        const response = await fetch("http://localhost:8000/api/sports"); // عدل الرابط حسب الـ endpoint الصحيح لديك
+        const response = await fetch(`${API_URL}/sports`);
         const data = await response.json();
         const sportsList = data.data || data;
         
         if (Array.isArray(sportsList) && sportsList.length > 0) {
           setSportsOptions(sportsList);
-          // تعيين أول رياضة كقيمة افتراضية للمدرب
           setFormData((prev) => ({ ...prev, sport: sportsList[0]._id }));
         }
       } catch (err) {
