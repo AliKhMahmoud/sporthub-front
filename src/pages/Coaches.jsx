@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState, useEffect } from "react";
 import {
   CalendarDays,
   Clock,
@@ -10,13 +10,9 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { getApprovedCoaches } from "../services/coachService";
 import {
-  getTrainingRequests,
+  getMyTrainingRequests,
   createTrainingRequest,
 } from "../services/trainingRequestService";
-
-import { createNotification } from "../services/notificationService";
-
-import { useEffect } from "react";
 
 const sportsOptions = [
   "Fitness",
@@ -28,81 +24,61 @@ const sportsOptions = [
 
 function Coaches() {
   const { user } = useAuth();
-
-  const currentUserId = user?.id || user?.email;
+  const currentUserId = user?.id || user?._id;
 
   const [selectedSport, setSelectedSport] = useState("Fitness");
   const [requests, setRequests] = useState([]);
-
   const [coaches, setCoaches] = useState([]);
 
-useEffect(() => {
-  const loadData = async () => {
-    const coachesData =
-      await getApprovedCoaches(selectedSport);
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const coachesData = await getApprovedCoaches(selectedSport);
+        setCoaches(coachesData || []);
 
-    const requestsData =
-      await getTrainingRequests();
+        const requestsData = await getMyTrainingRequests();
+        setRequests(requestsData.data || requestsData || []);
+      } catch (error) {
+        console.error("Error loading coaches or requests:", error);
+      }
+    };
 
-    setCoaches(coachesData);
-    setRequests(requestsData);
-  };
-
-  loadData();
-}, [selectedSport]);
-
-  
+    loadData();
+  }, [selectedSport]);
 
   const getRequestStatus = (coach) => {
-    const coachId = coach.id || coach.email;
+    const coachId = coach.id || coach._id;
 
-    const existingRequest = requests.find(
-      (request) =>
-        String(request.athleteId) === String(currentUserId) &&
-        String(request.coachId) === String(coachId)
-    );
+    // الباك إند يخزن الطلب كـ ID أو كـ Object في خانة coach
+    const existingRequest = requests.find((request) => {
+      const reqCoachId = request.coach?._id || request.coach;
+      return String(reqCoachId) === String(coachId);
+    });
 
     return existingRequest?.status || null;
   };
 
   const requestTraining = async (coach) => {
-  if (!currentUserId) return;
+    if (!currentUserId) return;
 
-  const coachId = coach.id || coach.email;
+    const coachId = coach.id || coach._id;
 
-  const result =
-    await createTrainingRequest({
-      athleteId: currentUserId,
-      athleteName: user?.name || "Athlete",
-      athleteEmail: user?.email || "",
-      coachId,
-      coachName: coach.name,
-      coachEmail: coach.email,
-      sport: coach.coachSport,
-      message: `${
-        user?.name || "An athlete"
-      } wants to train with you.`,
-    });
+    try {
+      // إرسال البيانات بالطريقة المطابقة تماماً للباك إند Controller
+      const result = await createTrainingRequest({
+        coachId,
+        message: `${user?.name || "An athlete"} wants to train with you.`,
+      });
 
-  if (!result.success) return;
-
-  const updatedRequests =
-    await getTrainingRequests();
-
-  setRequests(updatedRequests);
-
-  await createNotification({
-    type: "training_request",
-    title: "New Training Request",
-    message: `${
-      user?.name || "An athlete"
-    } requested training with you.`,
-    userId: coachId,
-    senderId: currentUserId,
-    requestId: result.request.id,
-    link: "/dashboard/athletes",
-  });
-};
+      if (result) {
+        // تحديث قائمة الطلبات محلياً بعد الإرسال الناجح
+        const updatedRequests = await getMyTrainingRequests();
+        setRequests(updatedRequests.data || updatedRequests || []);
+      }
+    } catch (error) {
+      console.error("Error sending training request:", error);
+    }
+  };
 
   return (
     <main className="max-w-7xl mx-auto px-6 py-16">
@@ -148,105 +124,111 @@ useEffect(() => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {coaches.map((coach) => {
+            const coachId = coach.id || coach._id;
             const requestStatus = getRequestStatus(coach);
 
             return (
               <div
-                key={coach.id || coach.email}
-                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6"
+                key={coachId}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 flex flex-col justify-between"
               >
-                <img
-                  src={coach.avatar || "https://i.pravatar.cc/150"}
-                  alt={coach.name}
-                  className="w-24 h-24 rounded-full object-cover border-4 border-red-500/20 mb-5"
-                />
+                <div>
+                  <img
+                    src={coach.avatar || "https://i.pravatar.cc/150"}
+                    alt={coach.name}
+                    className="w-24 h-24 rounded-full object-cover border-4 border-red-500/20 mb-5"
+                  />
 
-                <h2 className="text-2xl font-bold text-slate-950 dark:text-white">
-                  {coach.name}
-                </h2>
+                  <h2 className="text-2xl font-bold text-slate-950 dark:text-white">
+                    {coach.name}
+                  </h2>
 
-                <p className="text-slate-500 mt-2">
-                  {coach.email}
-                </p>
-
-                <div className="mt-4 inline-flex items-center gap-2 bg-red-500/10 text-red-500 px-4 py-2 rounded-xl font-semibold">
-                  <Trophy size={18} />
-                  Coach for {coach.coachSport}
-                </div>
-
-                <div className="mt-5 space-y-3 text-slate-600 dark:text-slate-400">
-                  <p>
-                    <strong>Age:</strong>{" "}
-                    {coach.age || "Not specified"}
+                  <p className="text-slate-500 mt-2">
+                    {coach.email}
                   </p>
 
-                  <p>
-                    <strong>Experience:</strong>{" "}
-                    {coach.experienceYears
-                      ? `${coach.experienceYears} years`
-                      : "Not specified"}
-                  </p>
+                  <div className="mt-4 inline-flex items-center gap-2 bg-red-500/10 text-red-500 px-4 py-2 rounded-xl font-semibold">
+                    <Trophy size={18} />
+                    Coach for {coach.coachSport || selectedSport}
+                  </div>
 
-                  <p className="flex items-center gap-2">
-                    <CalendarDays size={17} />
-                    {coach.workingDays || "Working days not specified"}
-                  </p>
-
-                  <p className="flex items-center gap-2">
-                    <Clock size={17} />
-                    {coach.workingHours || "Working hours not specified"}
-                  </p>
-
-                  {coach.certificates && (
+                  <div className="mt-5 space-y-3 text-slate-600 dark:text-slate-400">
                     <p>
-                      <strong>Certificates:</strong>{" "}
-                      {coach.certificates}
+                      <strong>Age:</strong>{" "}
+                      {coach.age || "Not specified"}
                     </p>
-                  )}
 
-                  {coach.bio && (
-                    <p className="leading-7">
-                      {coach.bio}
+                    <p>
+                      <strong>Experience:</strong>{" "}
+                      {coach.experienceYears
+                        ? `${coach.experienceYears} years`
+                        : "Not specified"}
                     </p>
-                  )}
+
+                    <p className="flex items-center gap-2">
+                      <CalendarDays size={17} />
+                      {coach.workingDays || "Working days not specified"}
+                    </p>
+
+                    <p className="flex items-center gap-2">
+                      <Clock size={17} />
+                      {coach.workingHours || "Working hours not specified"}
+                    </p>
+
+                    {coach.certificates && (
+                      <p>
+                        <strong>Certificates:</strong>{" "}
+                        {coach.certificates}
+                      </p>
+                    )}
+
+                    {coach.bio && (
+                      <p className="leading-7">
+                        {coach.bio}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
-                {requestStatus === "pending" && (
-                  <button
-                    disabled
-                    className="mt-6 w-full bg-yellow-500/20 text-yellow-500 py-3 rounded-xl font-semibold"
-                  >
-                    Request Pending
-                  </button>
-                )}
+                <div className="mt-6">
+                  {requestStatus === "pending" && (
+                    <button
+                      disabled
+                      className="w-full bg-yellow-500/20 text-yellow-500 py-3 rounded-xl font-semibold cursor-not-allowed"
+                    >
+                      Request Pending
+                    </button>
+                  )}
 
-                {requestStatus === "accepted" && (
-                  <button
-                    disabled
-                    className="mt-6 w-full bg-emerald-500/20 text-emerald-500 py-3 rounded-xl font-semibold"
-                  >
-                    Request Accepted
-                  </button>
-                )}
+                  {requestStatus === "accepted" && (
+                    <button
+                      disabled
+                      className="w-full bg-emerald-500/20 text-emerald-500 py-3 rounded-xl font-semibold cursor-not-allowed"
+                    >
+                      Request Accepted
+                    </button>
+                  )}
 
-                {requestStatus === "rejected" && (
-                  <button
-                    disabled
-                    className="mt-6 w-full bg-red-500/20 text-red-500 py-3 rounded-xl font-semibold"
-                  >
-                    Request Rejected
-                  </button>
-                )}
-                {!requestStatus && (
-                  <button
-                    type="button"
-                    onClick={() => requestTraining(coach)}
-                    className="mt-6 w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2"
-                  >
-                    <UserPlus size={18} />
-                    Request Training
-                  </button>
-                )}
+                  {requestStatus === "rejected" && (
+                    <button
+                      disabled
+                      className="w-full bg-red-500/20 text-red-500 py-3 rounded-xl font-semibold cursor-not-allowed"
+                    >
+                      Request Rejected
+                    </button>
+                  )}
+
+                  {!requestStatus && (
+                    <button
+                      type="button"
+                      onClick={() => requestTraining(coach)}
+                      className="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <UserPlus size={18} />
+                      Request Training
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
