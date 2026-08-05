@@ -14,27 +14,45 @@ import {
   createTrainingRequest,
 } from "../services/trainingRequestService";
 
-const sportsOptions = [
-  "Fitness",
-  "Boxing",
-  "Bodybuilding",
-  "Karate",
-  "Taekwondo",
-];
-
 function Coaches() {
   const { user } = useAuth();
   const currentUserId = user?.id || user?._id;
-  console.log("Current User ID:", currentUserId);
-  const [selectedSport, setSelectedSport] = useState("Fitness");
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+
+  const [sportsOptions, setSportsOptions] = useState([]);
+  const [selectedSportId, setSelectedSportId] = useState("");
   const [requests, setRequests] = useState([]);
   const [coaches, setCoaches] = useState([]);
 
-useEffect(() => {
+  // 1. جلب الرياضات أولاً عند تحميل الصفحة (تماماً مثل التسجيل)
+  useEffect(() => {
+    const fetchSports = async () => {
+      try {
+        const response = await fetch(`${API_URL}/sports`);
+        const data = await response.json();
+        const sportsList = data.data || data;
+
+        if (Array.isArray(sportsList) && sportsList.length > 0) {
+          setSportsOptions(sportsList);
+          // تعيين أول رياضة كافتراضية واختيار الـ _id الخاص بها
+          setSelectedSportId(sportsList[0]._id);
+        }
+      } catch (err) {
+        console.error("Failed to fetch sports:", err);
+      }
+    };
+
+    fetchSports();
+  }, [API_URL]);
+
+  // 2. جلب المدربين والطلبات بناءً على الـ _id للرياضة المختارة
+  useEffect(() => {
+    if (!selectedSportId) return;
+
     const loadData = async () => {
       try {
-        const coachesData = await getApprovedCoaches(selectedSport);
-        // التأكد من استخراج المصفوفة بدقة سواء كانت داخل .data أو مباشرة
+        // نمرر الـ _id الخاص بالرياضة بدلاً من الاسم
+        const coachesData = await getApprovedCoaches(selectedSportId);
         const coachesList = coachesData?.data?.data || coachesData?.data || coachesData;
         setCoaches(Array.isArray(coachesList) ? coachesList : []);
 
@@ -49,12 +67,11 @@ useEffect(() => {
     };
 
     loadData();
-  }, [selectedSport]);
+  }, [selectedSportId]);
 
   const getRequestStatus = (coach) => {
     const coachId = coach.id || coach._id;
 
-    // الباك إند يخزن الطلب كـ ID أو كـ Object في خانة coach
     const existingRequest = requests.find((request) => {
       const reqCoachId = request.coach?._id || request.coach;
       return String(reqCoachId) === String(coachId);
@@ -69,16 +86,15 @@ useEffect(() => {
     const coachId = coach.id || coach._id;
 
     try {
-      // إرسال البيانات بالطريقة المطابقة تماماً للباك إند Controller
       const result = await createTrainingRequest({
         coachId,
         message: `${user?.name || "An athlete"} wants to train with you.`,
       });
 
       if (result) {
-        // تحديث قائمة الطلبات محلياً بعد الإرسال الناجح
         const updatedRequests = await getMyTrainingRequests();
-        setRequests(updatedRequests.data || updatedRequests || []);
+        const requestsList = updatedRequests?.data?.data || updatedRequests?.data || updatedRequests;
+        setRequests(Array.isArray(requestsList) ? requestsList : []);
       }
     } catch (error) {
       console.error("Error sending training request:", error);
@@ -108,13 +124,13 @@ useEffect(() => {
         </label>
 
         <select
-          value={selectedSport}
-          onChange={(event) => setSelectedSport(event.target.value)}
+          value={selectedSportId}
+          onChange={(event) => setSelectedSportId(event.target.value)}
           className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white"
         >
-          {sportsOptions.map((sport) => (
-            <option key={sport} value={sport}>
-              {sport}
+          {sportsOptions.map((sportItem) => (
+            <option key={sportItem._id} value={sportItem._id}>
+              {sportItem.name}
             </option>
           ))}
         </select>
@@ -123,7 +139,7 @@ useEffect(() => {
       {coaches.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-10 text-center">
           <p className="text-slate-500 dark:text-slate-400">
-            No approved coaches found for {selectedSport} yet.
+            No approved coaches found for this sport yet.
           </p>
         </div>
       ) : (
@@ -154,7 +170,7 @@ useEffect(() => {
 
                   <div className="mt-4 inline-flex items-center gap-2 bg-red-500/10 text-red-500 px-4 py-2 rounded-xl font-semibold">
                     <Trophy size={18} />
-                    Coach for {coach.coachSport || selectedSport}
+                    Coach
                   </div>
 
                   <div className="mt-5 space-y-3 text-slate-600 dark:text-slate-400">
