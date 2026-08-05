@@ -24,7 +24,7 @@ function Coaches() {
   const [requests, setRequests] = useState([]);
   const [coaches, setCoaches] = useState([]);
 
-  // 1. جلب الرياضات أولاً عند تحميل الصفحة (تماماً مثل التسجيل)
+  // 1. جلب الرياضات أولاً عند تحميل الصفحة
   useEffect(() => {
     const fetchSports = async () => {
       try {
@@ -34,7 +34,6 @@ function Coaches() {
 
         if (Array.isArray(sportsList) && sportsList.length > 0) {
           setSportsOptions(sportsList);
-          // تعيين أول رياضة كافتراضية واختيار الـ _id الخاص بها
           setSelectedSportId(sportsList[0]._id);
         }
       } catch (err) {
@@ -51,7 +50,6 @@ function Coaches() {
 
     const loadData = async () => {
       try {
-        // نمرر الـ _id الخاص بالرياضة بدلاً من الاسم
         const coachesData = await getApprovedCoaches(selectedSportId);
         const coachesList = coachesData?.data?.data || coachesData?.data || coachesData;
         setCoaches(Array.isArray(coachesList) ? coachesList : []);
@@ -73,7 +71,7 @@ function Coaches() {
     const coachId = coach.id || coach._id;
 
     const existingRequest = requests.find((request) => {
-      const reqCoachId = request.coach?._id || request.coach;
+      const reqCoachId = request.coach?._id || request.coach?.id || request.coach;
       return String(reqCoachId) === String(coachId);
     });
 
@@ -188,7 +186,9 @@ function Coaches() {
 
                     <p className="flex items-center gap-2">
                       <CalendarDays size={17} />
-                      {coach.workingDays || "Working days not specified"}
+                      {Array.isArray(coach.workingDays)
+                        ? coach.workingDays.join(", ")
+                        : coach.workingDays || "Working days not specified"}
                     </p>
 
                     <p className="flex items-center gap-2">
@@ -199,7 +199,9 @@ function Coaches() {
                     {coach.certificates && (
                       <p>
                         <strong>Certificates:</strong>{" "}
-                        {coach.certificates}
+                        {Array.isArray(coach.certificates)
+                          ? coach.certificates.join(", ")
+                          : coach.certificates}
                       </p>
                     )}
 
