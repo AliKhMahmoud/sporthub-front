@@ -18,7 +18,8 @@ import { useAuth } from "../context/AuthContext";
 
 import {
   getCoachTrainingRequests,
-  updateTrainingRequestStatus,
+  acceptTrainingRequest,
+  rejectTrainingRequest,
 } from "../services/trainingRequestService";
 
 import { createNotification } from "../services/notificationService";
@@ -37,7 +38,7 @@ function DashboardAthletes() {
   useEffect(() => {
     const loadRequests = async () => {
       try {
-        const data = await getCoachTrainingRequests(currentCoachId);
+        const data = await getCoachTrainingRequests();
         setRequests(data || []);
       } catch (error) {
         console.error(error);
@@ -80,7 +81,7 @@ function DashboardAthletes() {
 
   const reloadRequests = async () => {
     try {
-      const data = await getCoachTrainingRequests(currentCoachId);
+      const data = await getCoachTrainingRequests();
       setRequests(data || []);
     } catch (error) {
       console.error(error);
@@ -88,12 +89,14 @@ function DashboardAthletes() {
     }
   };
 
-  const updateRequestStatus = async (requestId, status) => {
+  const updateRequestStatus = async (requestId, status, athleteId) => {
     try {
-      const updatedRequest = await updateTrainingRequestStatus(
-        requestId,
-        status
-      );
+      let updatedRequest;
+      if (status === "accepted") {
+        updatedRequest = await acceptTrainingRequest(requestId);
+      } else {
+        updatedRequest = await rejectTrainingRequest(requestId);
+      }
 
       if (!updatedRequest) return;
 
@@ -107,7 +110,7 @@ function DashboardAthletes() {
           status === "accepted"
             ? `${user?.name || "Coach"} accepted your training request.`
             : `${user?.name || "Coach"} rejected your training request.`,
-        userId: updatedRequest.athleteId,
+        userId: athleteId,
         senderId: currentCoachId,
         requestId,
         link: "/coaches",
@@ -194,7 +197,7 @@ function DashboardAthletes() {
             <div className="space-y-5">
               {pendingRequests.map((request) => (
                 <div
-                  key={request.id}
+                  key={request.id || request._id}
                   className="bg-slate-800 border border-slate-700 rounded-2xl p-5"
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
@@ -221,8 +224,9 @@ function DashboardAthletes() {
                         type="button"
                         onClick={() =>
                           updateRequestStatus(
-                            request.id,
-                            "accepted"
+                            request.id || request._id,
+                            "accepted",
+                            request.athleteId
                           )
                         }
                         className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 rounded-xl flex items-center gap-2"
@@ -234,8 +238,9 @@ function DashboardAthletes() {
                         type="button"
                         onClick={() =>
                           updateRequestStatus(
-                            request.id,
-                            "rejected"
+                            request.id || request._id,
+                            "rejected",
+                            request.athleteId
                           )
                         }
                         className="bg-red-500 hover:bg-red-600 text-white px-5 py-3 rounded-xl flex items-center gap-2"
@@ -304,7 +309,7 @@ function DashboardAthletes() {
             ) : (
               filteredAthletes.map((athlete, index) => (
                 <motion.div
-                  key={athlete.id}
+                  key={athlete.id || athlete._id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.08 }}
@@ -344,7 +349,7 @@ function DashboardAthletes() {
                           )
                         }
                         className="w-10 h-10 rounded-xl border border-slate-600 flex items-center justify-center hover:border-blue-500 transition"
-                        >
+                      >
                         <MessageCircle size={18} />
                       </button>
                     </div>
