@@ -62,9 +62,9 @@ function AuthProvider({ children }) {
       userData?.user || 
       userData;
       
-    setUser(actualUser);
     if (actualUser) {
       localStorage.setItem("sportsHub_user", JSON.stringify(actualUser));
+      setUser(actualUser); // تحديث الـ state فوراً
     }
   };
 
