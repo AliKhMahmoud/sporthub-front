@@ -21,40 +21,40 @@ function Login() {
   const handleChange = (event) => {
     const { name, value } = event.target;
 
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [name]: value,
-    });
+    }));
 
     setError("");
   };
 
   const handleLogin = async (event) => {
-      event.preventDefault(); // هذه تمنع تحديث الصفحة فوراً
+    event.preventDefault();
 
-      try {
-        const data = await loginUser(formData);
-        const loggedUser = data.user || data;
+    try {
+      const data = await loginUser(formData);
+      const loggedUser = data.user || data;
 
-        login(loggedUser);
+      login(loggedUser);
 
-        if (loggedUser.role === "admin") {
-          navigate("/admin");
-        } else if (
-          loggedUser.role === "coach" &&
-          loggedUser.coachStatus === "approved"
-        ) {
-          navigate("/dashboard");
-        } else {
-          navigate("/profile");
-        }
-      } catch (error) {
-        console.error("Login Error details:", error);
-        setError(
-          error?.response?.data?.message ||
-            "Invalid email or password"
-        );
+      if (loggedUser.role === "admin") {
+        navigate("/admin");
+      } else if (
+        loggedUser.role === "coach" &&
+        loggedUser.coachStatus === "approved"
+      ) {
+        navigate("/dashboard");
+      } else {
+        navigate("/profile");
       }
+    } catch (error) {
+      console.error("Login Error details:", error);
+      setError(
+        error?.response?.data?.message ||
+          "Invalid email or password"
+      );
+    }
   };
 
   return (
