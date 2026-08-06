@@ -13,7 +13,17 @@ import {
 const AuthContext = createContext();
 
 function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  // قراءة المستخدم المخزن مسبقاً في localStorage عند البدء لتجنب ضياع الحالة عند F5
+  const [user, setUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem("sportsHub_user");
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch (error) {
+      console.error("Error reading user from localStorage:", error);
+      return null;
+    }
+  });
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,22 +31,22 @@ function AuthProvider({ children }) {
       try {
         const response = await getCurrentUser();
 
-        // استخراج كائن المستخدم بدقة بغض النظر عن هيكلية الـ Response
         const currentUser =
           response?.data?.user ||
           response?.data ||
           response?.user ||
           response;
 
-        // التأكد من وجود كائن مستخدم حقيقي ويحتوي على بيانات الـ id أو الـ email أو الـ role
         if (currentUser && (currentUser.id || currentUser._id || currentUser.email || currentUser.role)) {
           setUser(currentUser);
+          localStorage.setItem("sportsHub_user", JSON.stringify(currentUser));
         } else {
           setUser(null);
+          localStorage.removeItem("sportsHub_user");
         }
       } catch (error) {
         console.error("Error loading user in AuthContext:", error);
-        setUser(null);
+        // في حال فشل الـ API (مثل انقطاع الاتصال مؤقتاً)، نبقي المستخدم الحالي من الـ localStorage إن وجد لضمان استقرار الواجهة
       } finally {
         setLoading(false);
       }
@@ -46,7 +56,6 @@ function AuthProvider({ children }) {
   }, []);
 
   const login = (userData) => {
-    // معالجة البيانات أثناء تسجيل الدخول المباشر والتأكد من استخراج الـ data بدقة
     const actualUser = 
       userData?.data?.user || 
       userData?.data || 
@@ -54,13 +63,20 @@ function AuthProvider({ children }) {
       userData;
       
     setUser(actualUser);
+    if (actualUser) {
+      localStorage.setItem("sportsHub_user", JSON.stringify(actualUser));
+    }
   };
 
   const updateUser = (updatedData) => {
-    setUser((prev) => ({
-      ...prev,
-      ...updatedData,
-    }));
+    setUser((prev) => {
+      const updatedUser = {
+        ...prev,
+        ...updatedData,
+      };
+      localStorage.setItem("sportsHub_user", JSON.stringify(updatedUser));
+      return updatedUser;
+    });
   };
 
   const logout = async () => {
@@ -70,6 +86,7 @@ function AuthProvider({ children }) {
       console.error(error);
     } finally {
       setUser(null);
+      localStorage.removeItem("sportsHub_user");
     }
   };
 
