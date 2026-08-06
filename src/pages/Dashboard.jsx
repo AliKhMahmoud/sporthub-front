@@ -7,8 +7,7 @@ import {
   Bot,
   Plus,
 } from "lucide-react";
-import { getCoachDashboardOverview } from "../services/dashboardService";
-
+import { getCoachDashboardOverview } from "../services/dashboardService"; // تأكد من اسم ومسار ملف الـ service لديك
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -99,11 +98,11 @@ function Dashboard() {
             </div>
 
             <button
-              onClick={() => navigate("/dashboard/training-requests")}
+              onClick={() => navigate("/dashboard/pending-ai-plans")}
               className="bg-red-500 hover:bg-red-600 px-6 py-4 rounded-xl font-semibold transition flex items-center gap-2 w-fit"
             >
               <Plus size={20} />
-              View Requests
+              Review AI Plans
             </button>
           </div>
         </motion.div>
@@ -146,7 +145,7 @@ function Dashboard() {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold">Recent Training Requests</h2>
                 <button
-                  onClick={() => navigate("/dashboard/training-requests")}
+                  onClick={() => navigate("/dashboard/athletes")}
                   className="text-red-400 hover:text-red-300 text-sm font-semibold"
                 >
                   View All
@@ -200,7 +199,7 @@ function Dashboard() {
 
               <div className="space-y-4">
                 <button
-                  onClick={() => navigate("/dashboard/trainees")}
+                  onClick={() => navigate("/dashboard/athletes")}
                   className="w-full bg-red-500 hover:bg-red-600 py-4 rounded-xl font-semibold transition"
                 >
                   Manage My Trainees
