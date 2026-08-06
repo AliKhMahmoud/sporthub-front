@@ -25,7 +25,6 @@ import AdminPanel from "./pages/AdminPanel";
 
 // Coach Dashboard Pages
 import Dashboard from "./pages/Dashboard";
-import DashboardContent from "./pages/DashboardContent";
 import DashboardAthletes from "./pages/DashboardAthletes";
 import DashboardAiPlans from "./pages/DashboardAiPlans";
 import DashboardProgressReviews from "./pages/DashboardProgressReviews";
@@ -111,7 +110,6 @@ function App() {
         }
       >
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/dashboard/content" element={<DashboardContent />} />
         <Route path="/dashboard/athletes" element={<DashboardAthletes />} />
         <Route path="/dashboard/ai-plans" element={<DashboardAiPlans />} />
         <Route path="/dashboard/progress-reviews" element={<DashboardProgressReviews />} />
