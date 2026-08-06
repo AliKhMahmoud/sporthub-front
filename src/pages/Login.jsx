@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import Button from "../components/ui/Button";
+import Input from "../components/ui/Input";
 
 import { useAuth } from "../context/AuthContext";
 import { loginUser } from "../services/authService";
@@ -20,10 +21,10 @@ function Login() {
   const handleChange = (event) => {
     const { name, value } = event.target;
 
-    setFormData((prev) => ({
-      ...prev,
+    setFormData({
+      ...formData,
       [name]: value,
-    }));
+    });
 
     setError("");
   };
@@ -33,6 +34,7 @@ function Login() {
 
     try {
       const data = await loginUser(formData);
+
       const loggedUser = data.user || data;
 
       login(loggedUser);
@@ -48,7 +50,7 @@ function Login() {
         navigate("/profile");
       }
     } catch (error) {
-      console.error("Login Error details:", error);
+      console.error(error);
       setError(
         error?.response?.data?.message ||
           "Invalid email or password"
@@ -74,31 +76,21 @@ function Login() {
         )}
 
         <form onSubmit={handleLogin} className="space-y-5">
-          <div className="space-y-1">
-            <label className="text-sm text-slate-300">Email Address</label>
-            <input
-              name="email"
-              type="email"
-              placeholder="Email Address"
-              value={formData.email}
-              onChange={handleChange}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500"
-              required
-            />
-          </div>
+          <Input
+            name="email"
+            type="email"
+            placeholder="Email Address"
+            value={formData.email}
+            onChange={handleChange}
+          />
 
-          <div className="space-y-1">
-            <label className="text-sm text-slate-300">Password</label>
-            <input
-              name="password"
-              type="password"
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleChange}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500"
-              required
-            />
-          </div>
+          <Input
+            name="password"
+            type="password"
+            placeholder="Password"
+            value={formData.password}
+            onChange={handleChange}
+          />
 
           <div className="flex items-center justify-between text-sm">
             <label className="flex items-center gap-2 text-slate-400">

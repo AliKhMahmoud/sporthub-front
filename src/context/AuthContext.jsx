@@ -1,9 +1,18 @@
-import { createContext, useContext, useState, useEffect } from "react";
-import { getCurrentUser, loginUser, logoutUser } from "../services/authService"; 
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
-const AuthContext = createContext(null);
+import {
+  getCurrentUser,
+  logoutUser,
+} from "../services/authService";
 
-export const AuthProvider = ({ children }) => {
+const AuthContext = createContext();
+
+function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -11,16 +20,20 @@ export const AuthProvider = ({ children }) => {
     const loadUser = async () => {
       try {
         const response = await getCurrentUser();
-        console.log("API getCurrentUser Response:", response);
 
-        // تعديل هنا لضمان التقاط المستخدم من استجابة الـ API لديك
+        // استخراج كائن المستخدم بدقة بغض النظر عن هيكلية الـ Response
         const currentUser =
           response?.data?.user ||
-          response?.user ||
           response?.data ||
+          response?.user ||
           response;
 
-        setUser(currentUser || null);
+        // التأكد من وجود كائن مستخدم حقيقي ويحتوي على بيانات الـ id أو الـ email أو الـ role
+        if (currentUser && (currentUser.id || currentUser._id || currentUser.email || currentUser.role)) {
+          setUser(currentUser);
+        } else {
+          setUser(null);
+        }
       } catch (error) {
         console.error("Error loading user in AuthContext:", error);
         setUser(null);
@@ -32,58 +45,76 @@ export const AuthProvider = ({ children }) => {
     loadUser();
   }, []);
 
-  const login = async (credentials) => {
-    try {
-      const response = await loginUser(credentials);
+  const login = (userData) => {
+    // معالجة البيانات أثناء تسجيل الدخول المباشر والتأكد من استخراج الـ data بدقة
+    const actualUser = 
+      userData?.data?.user || 
+      userData?.data || 
+      userData?.user || 
+      userData;
       
-      const loggedInUser =
-        response?.data?.user ||
-        response?.user ||
-        response?.data ||
-        response;
-      
-      setUser(loggedInUser);
-      return loggedInUser;
-    } catch (error) {
-      console.error("Login error:", error);
-      throw error;
-    }
+    setUser(actualUser);
+  };
+
+  const updateUser = (updatedData) => {
+    setUser((prev) => ({
+      ...prev,
+      ...updatedData,
+    }));
   };
 
   const logout = async () => {
     try {
       await logoutUser();
     } catch (error) {
-      console.error("Logout error:", error);
+      console.error(error);
     } finally {
       setUser(null);
     }
   };
 
-  const updateUser = (updatedData) => {
-    setUser((prevUser) => (prevUser ? { ...prevUser, ...updatedData } : updatedData));
-  };
+  // فحص الأدمن
+  const isAdmin =
+    user?.roleName === "SuperAdmin" ||
+    user?.roleName === "Admin" ||
+    user?.roleId === 6 ||
+    user?.roleId === "6" ||
+    user?.isAdmin === true ||
+    user?.role === "admin" ||
+    user?.role === "SuperAdmin";
 
-  const userRole = user?.role?.toLowerCase() || "";
-  const coachStatus = user?.coachStatus?.toLowerCase() || "";
+  // فحص المدرب المعتمد
+  const isCoach =
+    (user?.role === "coach" || user?.roleName === "Coach") &&
+    user?.coachStatus === "approved";
 
-  const isAdmin = userRole === "admin" || userRole === "superadmin";
-  const isCoach = userRole === "coach" && (coachStatus === "approved" || !coachStatus);
-  const isPendingCoach = userRole === "coach" && coachStatus === "pending";
-  const isRejectedCoach = userRole === "coach" && coachStatus === "rejected";
-  const isAthlete = userRole === "athlete";
+  // اللاعب
+  const isAthlete =
+    !isAdmin &&
+    !isCoach &&
+    (user?.role === "athlete" ||
+      user?.roleName === "Athlete" ||
+      (!user?.role && !user?.roleName));
+
+  const isPendingCoach =
+    (user?.role === "coach" || user?.requestedRole === "coach") &&
+    user?.coachStatus === "pending";
+
+  const isRejectedCoach =
+    (user?.role === "coach" || user?.requestedRole === "coach") &&
+    user?.coachStatus === "rejected";
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        loading,
         login,
         logout,
         updateUser,
-        loading,
+        isAdmin,
         isCoach,
         isAthlete,
-        isAdmin,
         isPendingCoach,
         isRejectedCoach,
       }}
@@ -91,7 +122,10 @@ export const AuthProvider = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-// eslint-disable-next-line react-refresh/only-export-components
-export const useAuth = () => useContext(AuthContext);
+function useAuth() {
+  return useContext(AuthContext);
+}
+
+export { AuthProvider, useAuth };
