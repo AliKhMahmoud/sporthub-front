@@ -28,6 +28,13 @@ function AuthProvider({ children }) {
 
   useEffect(() => {
     const loadUser = async () => {
+      // إذا كان المستخدم موجوداً أساساً في الـ LocalStorage، فلا داعي لعمل طلب API ثقيل وبطء فوري عند الإقلاع
+      const savedUser = localStorage.getItem("sportsHub_user");
+      if (savedUser) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const response = await getCurrentUser();
 
@@ -46,7 +53,6 @@ function AuthProvider({ children }) {
         }
       } catch (error) {
         console.error("Error loading user in AuthContext:", error);
-        // في حال فشل الـ API (مثل انقطاع الاتصال مؤقتاً)، نبقي المستخدم الحالي من الـ localStorage إن وجد لضمان استقرار الواجهة
       } finally {
         setLoading(false);
       }
@@ -67,6 +73,7 @@ function AuthProvider({ children }) {
       setUser(actualUser); // تحديث الـ state فوراً
     }
   };
+  
 
   const updateUser = (updatedData) => {
     setUser((prev) => {
