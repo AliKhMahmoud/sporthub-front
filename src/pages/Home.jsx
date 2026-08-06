@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 
 import ForumPostCard from "../features/forum/components/ForumPostCard";
@@ -28,7 +28,6 @@ const fadeUp = {
 
 function Home() {
   const { user, isAthlete, isCoach } = useAuth();
-  const navigate = useNavigate();
 
   const [latestPosts, setLatestPosts] = useState([]);
   const [coaches, setCoaches] = useState([]);
