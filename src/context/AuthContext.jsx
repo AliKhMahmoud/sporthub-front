@@ -73,36 +73,42 @@ function AuthProvider({ children }) {
     }
   };
 
+  // توحيد النصوص وحمايتها من تباين الحروف الصغيرة والكبيرة (Case-insensitive)
+  const userRole = user?.role?.toLowerCase() || "";
+  const roleName = user?.roleName?.toLowerCase() || "";
+  const coachStatus = user?.coachStatus?.toLowerCase() || "";
+  const requestedRole = user?.requestedRole?.toLowerCase() || "";
+
   // فحص الأدمن
   const isAdmin =
-    user?.roleName === "SuperAdmin" ||
-    user?.roleName === "Admin" ||
+    roleName === "superadmin" ||
+    roleName === "admin" ||
     user?.roleId === 6 ||
     user?.roleId === "6" ||
     user?.isAdmin === true ||
-    user?.role === "admin" ||
-    user?.role === "SuperAdmin";
+    userRole === "admin" ||
+    userRole === "superadmin";
 
   // فحص المدرب المعتمد
   const isCoach =
-    (user?.role === "coach" || user?.roleName === "Coach") &&
-    user?.coachStatus === "approved";
+    (userRole === "coach" || roleName === "coach") &&
+    coachStatus === "approved";
 
   // اللاعب
   const isAthlete =
     !isAdmin &&
     !isCoach &&
-    (user?.role === "athlete" ||
-      user?.roleName === "Athlete" ||
-      (!user?.role && !user?.roleName));
+    (userRole === "athlete" ||
+      roleName === "athlete" ||
+      (!userRole && !roleName));
 
   const isPendingCoach =
-    (user?.role === "coach" || user?.requestedRole === "coach") &&
-    user?.coachStatus === "pending";
+    (userRole === "coach" || requestedRole === "coach") &&
+    coachStatus === "pending";
 
   const isRejectedCoach =
-    (user?.role === "coach" || user?.requestedRole === "coach") &&
-    user?.coachStatus === "rejected";
+    (userRole === "coach" || requestedRole === "coach") &&
+    coachStatus === "rejected";
 
   return (
     <AuthContext.Provider
