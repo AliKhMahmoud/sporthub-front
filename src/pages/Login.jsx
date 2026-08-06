@@ -5,6 +5,7 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 
 import { useAuth } from "../context/AuthContext";
+import { loginUser } from "../services/authService";
 
 function Login() {
   const navigate = useNavigate();
@@ -29,13 +30,14 @@ function Login() {
   };
 
   const handleLogin = async (event) => {
-      event.preventDefault();
+      event.preventDefault(); // هذه تمنع تحديث الصفحة فوراً
 
       try {
-        // استدعاء دالة الـ login من الـ Context مباشرة (وهي ستتولى الاتصال بالسيرفر وحفظ المستخدم)
-        const loggedUser = await login(formData);
+        const data = await loginUser(formData);
+        const loggedUser = data.user || data;
 
-        // التوجيه حسب الدور
+        login(loggedUser);
+
         if (loggedUser.role === "admin") {
           navigate("/admin");
         } else if (
@@ -47,13 +49,13 @@ function Login() {
           navigate("/profile");
         }
       } catch (error) {
-        console.error(error);
+        console.error("Login Error details:", error);
         setError(
           error?.response?.data?.message ||
             "Invalid email or password"
         );
       }
-    };
+  };
 
   return (
     <main className="bg-slate-950 min-h-screen text-white px-6 py-16 flex justify-center">
