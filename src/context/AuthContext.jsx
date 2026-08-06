@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import { getCurrentUser, login as loginService, logout as logoutService } from "../services/authService"; // عدل المسار حسب ملفاتك
 
 const AuthContext = createContext(null);
@@ -107,4 +107,5 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);
