@@ -34,15 +34,11 @@ function Login() {
 
     try {
       const response = await loginUser(formData);
-      
       const loggedUser = response?.data || response;
 
-      console.log("LOGGED USER DATA:", loggedUser); 
-      console.log("ROLE:", loggedUser.role);
-
+      // التأكد من حفظ البيانات وتحديث السياق
       login(loggedUser);
 
-      // التحقق من حالات الكوتش المعلق أو المرفوض أولاً لإظهار الخطأ المناسب إذا لزم
       if (loggedUser.role === "coach") {
         if (loggedUser.coachStatus === "pending") {
           setError("Your account is pending admin approval.");
@@ -53,8 +49,8 @@ function Login() {
         }
       }
 
-      // توجيه الجميع إلى الصفحة الرئيسية (Home) مباشرة بعد تسجيل الدخول الناجح
-      navigate("/");
+      // استخدام window.location.href بدلاً من navigate لضمان إعادة تحميل الحالة والتوجه للهوم فوراً
+      window.location.href = "/";
 
     } catch (error) {
       console.error(error);
