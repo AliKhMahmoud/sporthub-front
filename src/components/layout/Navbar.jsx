@@ -29,7 +29,7 @@ import logo from "../../assets/logo/logo.png";
 
 function Navbar() {
   const navigate = useNavigate();
-
+  
   const [isOpen, setIsOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -45,7 +45,9 @@ function Navbar() {
     isPendingCoach,
     isRejectedCoach,
   } = useAuth();
-
+const authData = useAuth();
+  console.log("Navbar Auth Data Check:", authData);
+  console.log("Current User Object:", authData?.user);
   const { theme, toggleTheme } = useTheme();
 
   // فحص مرن ومباشر للـ Role والـ Status من كائن المستخدم نفسه لتجنب أي تأخير في الـ Context
