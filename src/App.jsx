@@ -1,41 +1,57 @@
 import { Routes, Route } from "react-router-dom";
-import AdminPanel from "./pages/AdminPanel";
+
+// Layouts & Protection
 import MainLayout from "./layouts/MainLayout";
 import DashboardLayout from "./layouts/DashboardLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
-import CoachChats from "./pages/CoachChats";
+
+// Public & General Pages
 import Home from "./pages/Home";
 import Sports from "./pages/Sports";
+import SportDetails from "./pages/SportsDetails";
 import Forum from "./pages/Forum";
-import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import SportDetails from "./pages/SportsDetails";
-import AiTrainer from "./pages/AITrainer";
+
+// User / Athlete & Shared Protected Pages
+import Profile from "./pages/Profile";
 import Coaches from "./pages/Coaches";
 import Chat from "./pages/Chat";
 import MyChats from "./pages/MyChats";
+import AiTrainer from "./pages/AITrainer";
+
+// Admin Page
+import AdminPanel from "./pages/AdminPanel";
+
+// Coach Dashboard Pages
 import Dashboard from "./pages/Dashboard";
 import DashboardContent from "./pages/DashboardContent";
 import DashboardAthletes from "./pages/DashboardAthletes";
 import DashboardAiPlans from "./pages/DashboardAiPlans";
 import DashboardProgressReviews from "./pages/DashboardProgressReviews";
+import CoachChats from "./pages/CoachChats";
+
 function App() {
   return (
     <Routes>
+      {/* 1. المسارات الرئيسية العامة وتحت مظلة MainLayout */}
       <Route element={<MainLayout />}>
         <Route path="/" element={<Home />} />
         <Route path="/sports" element={<Sports />} />
         <Route path="/sports/:slug" element={<SportDetails />} />
         <Route path="/forum" element={<Forum />} />
+
+        {/* لوحة تحكم المسؤول (Admin) */}
         <Route
-  path="/admin"
-  element={
-    <ProtectedRoute role="admin">
-      <AdminPanel />
-    </ProtectedRoute>
-  }
-/>
+          path="/admin"
+          element={
+            <ProtectedRoute role="admin">
+              <AdminPanel />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* الملف الشخصي (متاح للمستخدمين المسجلين) */}
         <Route
           path="/profile"
           element={
@@ -45,15 +61,7 @@ function App() {
           }
         />
 
-        <Route
-          path="/ai-trainer"
-          element={
-            <ProtectedRoute role="athlete">
-              <AiTrainer />
-            </ProtectedRoute>
-          }
-        />
-
+        {/* المدربون وخدمات الدردشة الخاصة بالرياضيين */}
         <Route
           path="/coaches"
           element={
@@ -62,7 +70,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/chat/:coachId"
           element={
@@ -72,18 +79,30 @@ function App() {
           }
         />
         <Route
-  path="/my-chats"
-  element={
-    <ProtectedRoute role="athlete">
-      <MyChats />
-    </ProtectedRoute>
-  }
-/>
+          path="/my-chats"
+          element={
+            <ProtectedRoute role="athlete">
+              <MyChats />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* مدرب الذكاء الاصطناعي (خاص بالرياضيين) */}
+        <Route
+          path="/ai-trainer"
+          element={
+            <ProtectedRoute role="athlete">
+              <AiTrainer />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
+      {/* 2. مسارات تسجيل الدخول وإنشاء الحساب */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
+      {/* 3. لوحة تحكم المدرب (Coach Dashboard) - تحت مظلة DashboardLayout */}
       <Route
         element={
           <ProtectedRoute role="coach">
@@ -96,8 +115,7 @@ function App() {
         <Route path="/dashboard/athletes" element={<DashboardAthletes />} />
         <Route path="/dashboard/ai-plans" element={<DashboardAiPlans />} />
         <Route path="/dashboard/progress-reviews" element={<DashboardProgressReviews />} />
-        <Route path="/dashboard/chats" element={<CoachChats />}
-/>
+        <Route path="/dashboard/chats" element={<CoachChats />} />
       </Route>
     </Routes>
   );

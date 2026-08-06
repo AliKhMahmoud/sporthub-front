@@ -48,8 +48,11 @@ function Navbar() {
 
   const { theme, toggleTheme } = useTheme();
 
-  // فحص دقيق وشامل لصلاحية الأدمن أو السوبر أدمن بناءً على البيانات المتوفرة في الكائن
+  // تعديل التحقق ليعتمد بشكل أساسي على الـ role القادم من كائن المستخدم
+  const userRole = user?.role?.toLowerCase() || "";
   const canAccessAdmin =
+    userRole === "admin" ||
+    userRole === "superadmin" ||
     user?.roleName === "SuperAdmin" ||
     user?.roleName === "Admin" ||
     user?.roleId === 6 ||
@@ -99,7 +102,6 @@ function Navbar() {
       try {
         const data = await getNotifications();
 
-        // حماية تامة للتأكد من أننا نتعامل مع مصفوفة بغض النظر عن شكل الاستجابة
         const list = Array.isArray(data) 
           ? data 
           : (Array.isArray(data?.notifications) ? data.notifications : (Array.isArray(data?.data) ? data.data : []));
@@ -152,7 +154,6 @@ function Navbar() {
     { path: "/sports", label: "Sports" },
     { path: "/forum", label: "Forum" },
     { path: "/profile", label: "Profile" },
-    // استخدام canAccessAdmin لتضمين السوبر أدمن والأدمن في شريط التنقل الرئيسي
     ...(canAccessAdmin ? [{ path: "/admin", label: "Admin Panel" }] : []),
   ];
 
@@ -180,7 +181,7 @@ function Navbar() {
     logout();
     navigate("/");
   };
-  console.log(JSON.parse(localStorage.getItem('user')));
+
   return (
     <nav className="sticky top-0 z-50 border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-6">
@@ -337,7 +338,8 @@ function Navbar() {
                         Profile
                       </Link>
 
-                      {isAthlete && (
+                      {/* التحقق من الـ athlete بناءً على الـ role أو helper */}
+                      {(userRole === "athlete" || isAthlete) && (
                         <>
                           <Link
                             to="/coaches"
@@ -396,7 +398,8 @@ function Navbar() {
                         </div>
                       )}
 
-                      {isCoach && (
+                      {/* التحقق من الـ coach بناءً على الـ role أو helper */}
+                      {(userRole === "coach" || isCoach) && (
                         <>
                           <Link
                             to="/dashboard"
@@ -519,7 +522,7 @@ function Navbar() {
                   Profile
                 </Link>
 
-                {isAthlete && (
+                {(userRole === "athlete" || isAthlete) && (
                   <>
                     <Link
                       to="/coaches"
@@ -550,7 +553,7 @@ function Navbar() {
                   </>
                 )}
 
-                {isCoach && (
+                {(userRole === "coach" || isCoach) && (
                   <>
                     <Link
                       to="/dashboard"
