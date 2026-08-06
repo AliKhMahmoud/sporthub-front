@@ -34,23 +34,27 @@ function Login() {
 
     try {
       const data = await loginUser(formData);
-
       const loggedUser = data.user || data;
 
+      // استدعاء دالة تسجيل الدخول لتخزين المستخدم في الـ Context والـ LocalStorage
       login(loggedUser);
 
-      if (loggedUser.role === "admin") {
-        navigate("/admin");
-      } else if (
-        loggedUser.role === "coach" &&
-        loggedUser.coachStatus === "approved"
-      ) {
-        navigate("/dashboard");
-      } else {
-        navigate("/profile");
-      }
+      // اعطاء مهلة صغيرة جداً أو الانتقال مباشرة بعد التأكد من حفظ الـ State
+      setTimeout(() => {
+        if (loggedUser.role === "admin") {
+          navigate("/admin");
+        } else if (
+          loggedUser.role === "coach" &&
+          loggedUser.coachStatus === "approved"
+        ) {
+          navigate("/dashboard");
+        } else {
+          navigate("/profile");
+        }
+      }, 50);
+
     } catch (error) {
-      console.error(error);
+      console.error("Login Error details:", error);
       setError(
         error?.response?.data?.message ||
           "Invalid email or password"
