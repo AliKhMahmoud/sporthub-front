@@ -5,7 +5,6 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 
 import { useAuth } from "../context/AuthContext";
-import { loginUser } from "../services/authService";
 
 function Login() {
   const navigate = useNavigate();
@@ -30,33 +29,31 @@ function Login() {
   };
 
   const handleLogin = async (event) => {
-    event.preventDefault();
+      event.preventDefault();
 
-    try {
-      const data = await loginUser(formData);
+      try {
+        // استدعاء دالة الـ login من الـ Context مباشرة (وهي ستتولى الاتصال بالسيرفر وحفظ المستخدم)
+        const loggedUser = await login(formData);
 
-      const loggedUser = data.user || data;
-
-      login(loggedUser);
-
-      if (loggedUser.role === "admin") {
-        navigate("/admin");
-      } else if (
-        loggedUser.role === "coach" &&
-        loggedUser.coachStatus === "approved"
-      ) {
-        navigate("/dashboard");
-      } else {
-        navigate("/profile");
+        // التوجيه حسب الدور
+        if (loggedUser.role === "admin") {
+          navigate("/admin");
+        } else if (
+          loggedUser.role === "coach" &&
+          loggedUser.coachStatus === "approved"
+        ) {
+          navigate("/dashboard");
+        } else {
+          navigate("/profile");
+        }
+      } catch (error) {
+        console.error(error);
+        setError(
+          error?.response?.data?.message ||
+            "Invalid email or password"
+        );
       }
-    } catch (error) {
-      console.error(error);
-      setError(
-        error?.response?.data?.message ||
-          "Invalid email or password"
-      );
-    }
-  };
+    };
 
   return (
     <main className="bg-slate-950 min-h-screen text-white px-6 py-16 flex justify-center">
