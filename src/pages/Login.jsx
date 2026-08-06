@@ -35,7 +35,10 @@ function Login() {
     try {
       const data = await loginUser(formData);
       const loggedUser = data.user || data;
-
+      
+      console.log("LOGGED USER DATA:", loggedUser); // <--- أنظر ماذا يظهر هنا في الـ Console!
+      console.log("ROLE:", loggedUser.role);
+      console.log("COACH STATUS:", loggedUser.coachStatus);
       // استدعاء دالة تسجيل الدخول لتخزين المستخدم في الـ Context والـ LocalStorage
       login(loggedUser);
 
