@@ -1,43 +1,25 @@
 import api from "./api";
 
-export async function getDashboardStats() {
-  const response = await api.get(
-    "/dashboard/stats"
-  );
-
+// 1. جلب نظرة عامة والإحصائيات الخاصة بلوحة تحكم الكوتش
+export async function getCoachDashboardOverview() {
+  const response = await api.get("/coach-dashboard");
   return response.data;
 }
 
-export async function getDashboardContent() {
-  const response = await api.get(
-    "/dashboard/content"
-  );
-
+// 2. جلب قائمة المتدربين التابعين لهذا الكوتش
+export async function getMyTrainees() {
+  const response = await api.get("/coach-dashboard/trainees");
   return response.data;
 }
 
-export async function createDashboardContent(data) {
-  const response = await api.post(
-    "/dashboard/content",
-    data
-  );
-
+// 3. جلب الخطط الذكية المعلقة التي تنتظر مراجعة وموافقة الكوتش
+export async function getPendingAiPlans() {
+  const response = await api.get("/coach-dashboard/pending-ai-plans");
   return response.data;
 }
 
-export async function updateDashboardContent(id, data) {
-  const response = await api.put(
-    `/dashboard/content/${id}`,
-    data
-  );
-
-  return response.data;
-}
-
-export async function deleteDashboardContent(id) {
-  const response = await api.delete(
-    `/dashboard/content/${id}`
-  );
-
+// 4. جلب طلبات التدريب الواردة الخاصة باللوحة
+export async function getDashboardTrainingRequests() {
+  const response = await api.get("/coach-dashboard/training-requests");
   return response.data;
 }

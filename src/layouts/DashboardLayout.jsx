@@ -2,12 +2,10 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 
 import {
   Bot,
-  FileText,
   LayoutDashboard,
   LogOut,
-  MessageCircle,
   Users,
-  CheckCircle,
+  ClipboardList,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -22,30 +20,20 @@ function DashboardLayout() {
       icon: LayoutDashboard,
     },
     {
-      label: "Content",
-      path: "/dashboard/content",
-      icon: FileText,
-    },
-    {
-      label: "Athletes",
-      path: "/dashboard/athletes",
+      label: "My Trainees",
+      path: "/dashboard/trainees",
       icon: Users,
     },
     {
-      label: "AI Plans",
-      path: "/dashboard/ai-plans",
-      icon: Bot,
+      label: "Training Requests",
+      path: "/dashboard/training-requests",
+      icon: ClipboardList,
     },
     {
-  label: "Progress Reviews",
-  path: "/dashboard/progress-reviews",
-  icon: CheckCircle,
-},
-    {
-  label: "Messages",
-  path: "/dashboard/chats",
-  icon: MessageCircle,
-},
+      label: "Pending AI Plans",
+      path: "/dashboard/pending-ai-plans",
+      icon: Bot,
+    },
   ];
 
   const getLinkClass = ({ isActive }) =>
