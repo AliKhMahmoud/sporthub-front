@@ -16,11 +16,8 @@ import {
 
 function DashboardProgressReviews() {
   const [requests, setRequests] = useState([]);
-  const [selectedRequest, setSelectedRequest] =
-    useState(null);
-
-  const [coachNote, setCoachNote] =
-    useState("");
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [coachNote, setCoachNote] = useState("");
 
   useEffect(() => {
     loadRequests();
@@ -28,9 +25,7 @@ function DashboardProgressReviews() {
 
   const loadRequests = async () => {
     try {
-      const data =
-        await getProgressReviewRequests();
-
+      const data = await getProgressReviewRequests();
       setRequests(data || []);
     } catch (error) {
       console.error(error);
@@ -38,19 +33,13 @@ function DashboardProgressReviews() {
     }
   };
 
-  const approveRequest = async (
-    requestId
-  ) => {
+  const approveRequest = async (requestId) => {
     try {
-      await approveProgressReview(
-        requestId,
-        {
-          coachNote,
-        }
-      );
+      await approveProgressReview(requestId, {
+        coachNote,
+      });
 
       await loadRequests();
-
       setSelectedRequest(null);
       setCoachNote("");
     } catch (error) {
@@ -58,19 +47,13 @@ function DashboardProgressReviews() {
     }
   };
 
-  const rejectRequest = async (
-    requestId
-  ) => {
+  const rejectRequest = async (requestId) => {
     try {
-      await rejectProgressReview(
-        requestId,
-        {
-          coachNote,
-        }
-      );
+      await rejectProgressReview(requestId, {
+        coachNote,
+      });
 
       await loadRequests();
-
       setSelectedRequest(null);
       setCoachNote("");
     } catch (error) {
@@ -82,16 +65,15 @@ function DashboardProgressReviews() {
     (item) => item.status === "pending"
   ).length;
 
-  const approvedCount =
-    requests.filter(
-      (item) => item.status === "approved"
-    ).length;
+  const approvedCount = requests.filter(
+    (item) => item.status === "approved"
+  ).length;
 
-  const rejectedCount =
-    requests.filter(
-      (item) => item.status === "rejected"
-    ).length;
-    return (
+  const rejectedCount = requests.filter(
+    (item) => item.status === "rejected"
+  ).length;
+
+  return (
     <main className="p-10 text-white">
       <motion.div
         initial={{ opacity: 0, y: 25 }}
@@ -149,61 +131,69 @@ function DashboardProgressReviews() {
         </div>
       ) : (
         <div className="space-y-6">
-          {requests.map((request) => (
-            <motion.div
-              key={request.id}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-slate-900 border border-slate-800 rounded-3xl p-6"
-            >
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
-                <div>
-                  <h2 className="text-2xl font-bold">
-                    {request.athleteName || "Athlete"}
-                  </h2>
+          {requests.map((request) => {
+            const requestId = request.id || request._id;
+            const athleteName = request.athlete?.name || request.athleteName || "Athlete";
+            const planTitle = request.plan?.title || request.planTitle || "Training Plan";
+            const sportName = request.sport?.name || request.sport || "Sport";
+            const progressVal = request.currentProgress ?? request.progress ?? 0;
 
-                  <p className="text-slate-400 mt-2">
-                    Plan: {request.planTitle || "Training Plan"}
-                  </p>
+            return (
+              <motion.div
+                key={requestId}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-slate-900 border border-slate-800 rounded-3xl p-6"
+              >
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+                  <div>
+                    <h2 className="text-2xl font-bold">
+                      {athleteName}
+                    </h2>
 
-                  <p className="text-slate-400">
-                    Sport: {request.sport || "Sport"}
-                  </p>
+                    <p className="text-slate-400 mt-2">
+                      Plan: {planTitle}
+                    </p>
 
-                  <p className="text-slate-400">
-                    Current Progress: {request.currentProgress || 0}%
-                  </p>
+                    <p className="text-slate-400">
+                      Sport: {sportName}
+                    </p>
+
+                    <p className="text-slate-400">
+                      Current Progress: {progressVal}%
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedRequest(request);
+                        setCoachNote(request.coachNote || "");
+                      }}
+                      className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-3 rounded-xl transition"
+                    >
+                      <Eye size={18} />
+                      View
+                    </button>
+
+                    <span
+                      className={
+                        "px-4 py-3 rounded-xl text-sm font-semibold " +
+                        (request.status === "approved"
+                          ? "bg-emerald-500/10 text-emerald-400"
+                          : request.status === "rejected"
+                          ? "bg-red-500/10 text-red-400"
+                          : "bg-yellow-500/10 text-yellow-400")
+                      }
+                    >
+                      {request.status}
+                    </span>
+                  </div>
                 </div>
-
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedRequest(request);
-                      setCoachNote(request.coachNote || "");
-                    }}
-                    className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-3 rounded-xl transition"
-                  >
-                    <Eye size={18} />
-                    View
-                  </button>
-
-                  <span
-                    className={
-                      "px-4 py-3 rounded-xl text-sm font-semibold " +
-                      (request.status === "approved"
-                        ? "bg-emerald-500/10 text-emerald-400"
-                        : request.status === "rejected"
-                        ? "bg-red-500/10 text-red-400"
-                        : "bg-yellow-500/10 text-yellow-400")
-                    }
-                  >
-                    {request.status}
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
       )}
 
@@ -215,20 +205,20 @@ function DashboardProgressReviews() {
             </h2>
 
             <p className="text-slate-400 mb-6">
-              Athlete: {selectedRequest.athleteName || "Athlete"}
+              Athlete: {selectedRequest.athlete?.name || selectedRequest.athleteName || "Athlete"}
             </p>
 
             <div className="bg-slate-800 rounded-2xl p-5 mb-6">
               <p className="text-slate-400 mb-2">
-                Plan: {selectedRequest.planTitle || "Training Plan"}
+                Plan: {selectedRequest.plan?.title || selectedRequest.planTitle || "Training Plan"}
               </p>
 
               <p className="text-slate-400 mb-2">
-                Sport: {selectedRequest.sport || "Sport"}
+                Sport: {selectedRequest.sport?.name || selectedRequest.sport || "Sport"}
               </p>
 
               <p className="text-slate-400">
-                Current Progress: {selectedRequest.currentProgress || 0}%
+                Current Progress: {selectedRequest.currentProgress ?? selectedRequest.progress ?? 0}%
               </p>
             </div>
 
@@ -246,7 +236,7 @@ function DashboardProgressReviews() {
               <button
                 type="button"
                 onClick={() =>
-                  approveRequest(selectedRequest.id)
+                  approveRequest(selectedRequest.id || selectedRequest._id)
                 }
                 className="flex-1 bg-emerald-500 hover:bg-emerald-600 py-4 rounded-xl font-semibold transition"
               >
@@ -256,7 +246,7 @@ function DashboardProgressReviews() {
               <button
                 type="button"
                 onClick={() =>
-                  rejectRequest(selectedRequest.id)
+                  rejectRequest(selectedRequest.id || selectedRequest._id)
                 }
                 className="flex-1 bg-red-500 hover:bg-red-600 py-4 rounded-xl font-semibold transition"
               >
