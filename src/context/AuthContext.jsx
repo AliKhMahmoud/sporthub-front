@@ -20,16 +20,16 @@ function AuthProvider({ children }) {
     const loadUser = async () => {
       try {
         const response = await getCurrentUser();
+        console.log("API getCurrentUser Response:", response); // طباعة للتاكد من الـ API
 
-        // استخراج كائن المستخدم بدقة بغض النظر عن هيكلية الـ Response
+        // استخراج المستخدم بأي شكل يأتي به الرد
         const currentUser =
           response?.data?.user ||
           response?.data ||
           response?.user ||
           response;
 
-        // التأكد من وجود كائن مستخدم حقيقي ويحتوي على بيانات الـ id أو الـ email أو الـ role
-        if (currentUser && (currentUser.id || currentUser._id || currentUser.email || currentUser.role)) {
+        if (currentUser) {
           setUser(currentUser);
         } else {
           setUser(null);
