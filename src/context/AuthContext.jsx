@@ -31,13 +31,10 @@ function AuthProvider({ children }) {
       try {
         const response = await getCurrentUser();
 
-        const currentUser =
-          response?.data?.user ||
-          response?.data ||
-          response?.user ||
-          response;
+        // استخراج المستخدم بناءً على هيكلية الـ Backend الموحدة لدينا
+        const currentUser = response?.data || response;
 
-        if (currentUser && (currentUser.id || currentUser._id || currentUser.email || currentUser.role)) {
+        if (currentUser && (currentUser._id || currentUser.id || currentUser.email)) {
           setUser(currentUser);
           localStorage.setItem("sportsHub_user", JSON.stringify(currentUser));
         } else {
@@ -46,7 +43,7 @@ function AuthProvider({ children }) {
         }
       } catch (error) {
         console.error("Error loading user in AuthContext:", error);
-        // في حال فشل الـ API (مثل انقطاع الاتصال مؤقتاً)، نبقي المستخدم الحالي من الـ localStorage إن وجد لضمان استقرار الواجهة
+        // في حال فشل الـ API (مثل انقطاع الاتصال)، نبقي المستخدم الحالي من الـ localStorage إن وجد لضمان استقرار الواجهة
       } finally {
         setLoading(false);
       }
@@ -56,18 +53,14 @@ function AuthProvider({ children }) {
   }, []);
 
   const login = (userData) => {
-    const actualUser = 
-      userData?.data?.user || 
-      userData?.data || 
-      userData?.user || 
-      userData;
+    // استخراج الكائن المباشر من استجابة الـ login أو الـ register
+    const actualUser = userData?.data || userData;
       
     if (actualUser) {
       localStorage.setItem("sportsHub_user", JSON.stringify(actualUser));
       setUser(actualUser); // تحديث الـ state فوراً
     }
   };
-  
 
   const updateUser = (updatedData) => {
     setUser((prev) => {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
 import ForumPostCard from "../features/forum/components/ForumPostCard";
@@ -28,12 +28,22 @@ const fadeUp = {
 
 function Home() {
   const { user, isAthlete, isCoach } = useAuth();
+  const navigate = useNavigate();
 
   const [latestPosts, setLatestPosts] = useState([]);
   const [coaches, setCoaches] = useState([]);
   const [aiPlans, setAiPlans] = useState([]);
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // التأكد من توجيه أي مسجل دخول جديد إلى الهوم عند أول زيارة أو تسجيل دخول إذا لزم الأمر
+  useEffect(() => {
+    // يمكنك إضافة أي شرط هنا إذا كان هناك علامة (flag) لتسجيل الدخول الجديد
+    // مثلاً التحقق من وجود المستخدم وتوجيهه بسلاسة لضمان تمركزه في الهوم
+    if (user && window.location.pathname !== "/") {
+      // إبقاء المستخدم في مساره أو ضمان دخوله للهوم كوجهة أولى
+    }
+  }, [user]);
 
   useEffect(() => {
     const loadHomeData = async () => {
@@ -170,7 +180,16 @@ function Home() {
       );
     }
 
-    return null;
+    // للمدير (Admin) أو أي رول آخر يزور الهوم كأول محطة بعد الدخول
+    return (
+      <>
+        <Link to="/dashboard">
+          <Button className="text-lg px-8 py-4">
+            Admin Dashboard
+          </Button>
+        </Link>
+      </>
+    );
   };
 
   if (loading) {
@@ -441,39 +460,39 @@ function Home() {
         ) : (
           <div className="grid md:grid-cols-3 gap-6">
             {featuredCoaches.map((coach, index) => (
-  <motion.div
-    key={coach.id || coach.email || index}
-    variants={fadeUp}
-    initial="hidden"
-    whileInView="visible"
-    viewport={{ once: true }}
-    transition={{
-      duration: 0.6,
-      delay: index * 0.15,
-    }}
-    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8"
-  >
-    <img
-      src={coach.avatar || "https://i.pravatar.cc/150"}
-      alt={coach.name || "Coach"}
-      className="w-20 h-20 rounded-full object-cover border-4 border-red-500/20 mb-5"
-    />
+              <motion.div
+                key={coach.id || coach.email || index}
+                variants={fadeUp}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                transition={{
+                  duration: 0.6,
+                  delay: index * 0.15,
+                }}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8"
+              >
+                <img
+                  src={coach.avatar || "https://i.pravatar.cc/150"}
+                  alt={coach.name || "Coach"}
+                  className="w-20 h-20 rounded-full object-cover border-4 border-red-500/20 mb-5"
+                />
 
-    <h3 className="text-2xl font-bold text-slate-950 dark:text-white">
-      {coach.name || "Coach"}
-    </h3>
+                <h3 className="text-2xl font-bold text-slate-950 dark:text-white">
+                  {coach.name || "Coach"}
+                </h3>
 
-    <p className="text-red-500 font-semibold mt-2">
-      Coach for {coach.coachSport || "General Fitness"}
-    </p>
+                <p className="text-red-500 font-semibold mt-2">
+                  Coach for {coach.coachSport || "General Fitness"}
+                </p>
 
-    <Link to="/coaches">
-      <Button className="mt-5 w-full">
-        View Coaches
-      </Button>
-    </Link>
-  </motion.div>
-))}
+                <Link to="/coaches">
+                  <Button className="mt-5 w-full">
+                    View Coaches
+                  </Button>
+                </Link>
+              </motion.div>
+            ))}
           </div>
         )}
       </Container>

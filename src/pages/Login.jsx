@@ -35,21 +35,27 @@ function Login() {
     try {
       const response = await loginUser(formData);
       
-      // استخراج الـ user بدقة من داخل الـ data القادمة من الـ API
-      const loggedUser = response?.data?.user || response?.data || response;
+      // استخراج الـ user بدقة (بما أن الـ Backend يرجع بيانات اليوزر مباشرة داخل response.data)
+      const loggedUser = response?.data || response;
 
       console.log("LOGGED USER DATA:", loggedUser); 
-      console.log("ROLE:", loggedUser.role); // ستظهر الآن "coach" بوضوح
+      console.log("ROLE:", loggedUser.role);
 
       login(loggedUser);
 
+      // التوجيه بناءً على الدور وحالة الحساب
       if (loggedUser.role === "admin") {
         navigate("/admin");
-      } else if (
-        loggedUser.role === "coach" &&
-        loggedUser.coachStatus === "approved"
-      ) {
-        navigate("/dashboard");
+      } else if (loggedUser.role === "coach") {
+        if (loggedUser.coachStatus === "approved") {
+          navigate("/dashboard");
+        } else if (loggedUser.coachStatus === "pending") {
+          setError("Your account is pending admin approval.");
+        } else if (loggedUser.coachStatus === "rejected") {
+          setError("Your coach request has been rejected.");
+        } else {
+          navigate("/profile");
+        }
       } else {
         navigate("/profile");
       }
