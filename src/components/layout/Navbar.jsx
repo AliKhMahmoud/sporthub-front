@@ -48,8 +48,13 @@ function Navbar() {
 
   const { theme, toggleTheme } = useTheme();
 
-  // تعديل التحقق ليعتمد بشكل أساسي على الـ role القادم من كائن المستخدم
+  // فحص مرن ومباشر للـ Role والـ Status من كائن المستخدم نفسه لتجنب أي تأخير في الـ Context
   const userRole = user?.role?.toLowerCase() || "";
+  const coachStatus = user?.coachStatus?.toLowerCase() || "";
+
+  const isUserCoach = userRole === "coach" || isCoach || coachStatus === "approved";
+  const isUserAthlete = userRole === "athlete" || isAthlete || (!userRole && !isUserCoach);
+  
   const canAccessAdmin =
     userRole === "admin" ||
     userRole === "superadmin" ||
@@ -66,8 +71,7 @@ function Navbar() {
       if (notification.senderId) {
         return `/chat/${notification.senderId}`;
       }
-
-      return isCoach ? "/dashboard/chats" : "/my-chats";
+      return isUserCoach ? "/dashboard/chats" : "/my-chats";
     }
 
     if (
@@ -77,12 +81,11 @@ function Navbar() {
       if (notification.postId) {
         return `/forum?post=${notification.postId}`;
       }
-
       return "/forum";
     }
 
     if (notification.type === "plan_review") {
-      return isCoach ? "/dashboard/ai-plans" : "/ai-trainer";
+      return isUserCoach ? "/dashboard/ai-plans" : "/ai-trainer";
     }
 
     if (notification.type === "coach_status") {
@@ -93,31 +96,31 @@ function Navbar() {
   };
 
   const loadNotifications = async () => {
-      if (!user) {
-        setNotifications([]);
-        setUnreadNotifications(0);
-        return;
-      }
+    if (!user) {
+      setNotifications([]);
+      setUnreadNotifications(0);
+      return;
+    }
 
-      try {
-        const data = await getNotifications();
+    try {
+      const data = await getNotifications();
 
-        const list = Array.isArray(data) 
-          ? data 
-          : (Array.isArray(data?.notifications) ? data.notifications : (Array.isArray(data?.data) ? data.data : []));
+      const list = Array.isArray(data) 
+        ? data 
+        : (Array.isArray(data?.notifications) ? data.notifications : (Array.isArray(data?.data) ? data.data : []));
 
-        const unreadCount = list.filter(
-          (notification) => notification.read === false
-        ).length;
+      const unreadCount = list.filter(
+        (notification) => notification.read === false
+      ).length;
 
-        setNotifications(list.slice(0, 6));
-        setUnreadNotifications(unreadCount);
-      } catch (error) {
-        console.error(error);
-        setNotifications([]);
-        setUnreadNotifications(0);
-      }
-    };
+      setNotifications(list.slice(0, 6));
+      setUnreadNotifications(unreadCount);
+    } catch (error) {
+      console.error(error);
+      setNotifications([]);
+      setUnreadNotifications(0);
+    }
+  };
 
   useEffect(() => {
     loadNotifications();
@@ -142,7 +145,6 @@ function Navbar() {
           markNotificationAsRead(notification.id)
         )
       );
-
       await loadNotifications();
     } catch (error) {
       console.error(error);
@@ -196,7 +198,6 @@ function Navbar() {
               alt="SportsHub Logo"
               className="w-24 h-24 object-contain group-hover:scale-105 transition"
             />
-
             <span className="hidden sm:block text-3xl xl:text-4xl font-extrabold text-red-500">
               SportsHub
             </span>
@@ -220,11 +221,7 @@ function Navbar() {
               onClick={toggleTheme}
               className={iconButtonClass}
             >
-              {theme === "dark" ? (
-                <Sun size={20} />
-              ) : (
-                <Moon size={20} />
-              )}
+              {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
             </button>
 
             {user && (
@@ -238,7 +235,6 @@ function Navbar() {
                   className={iconButtonClass}
                 >
                   <Bell size={20} />
-
                   {unreadNotifications > 0 && (
                     <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-6 h-6 rounded-full flex items-center justify-center font-bold">
                       {unreadNotifications}
@@ -251,7 +247,6 @@ function Navbar() {
                       <h3 className="font-bold text-slate-950 dark:text-white">
                         Notifications
                       </h3>
-
                       <button
                         type="button"
                         onClick={markAllAsRead}
@@ -285,13 +280,11 @@ function Navbar() {
                               <div className="mt-1 text-red-500">
                                 <Bell size={18} />
                               </div>
-
                               <div>
                                 <h4 className="font-bold text-slate-950 dark:text-white">
                                   {notification.title ||
                                     "New Notification"}
                                 </h4>
-
                                 <p className="text-sm text-slate-500 mt-1">
                                   {notification.message ||
                                     "You have a new update."}
@@ -318,11 +311,9 @@ function Navbar() {
                   className="flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-red-500 transition"
                 >
                   <User size={18} />
-
                   <span className="max-w-[120px] truncate">
                     {user.name || user.firstName || "Account"}
                   </span>
-
                   <ChevronDown size={16} />
                 </button>
 
@@ -338,8 +329,8 @@ function Navbar() {
                         Profile
                       </Link>
 
-                      {/* التحقق من الـ athlete بناءً على الـ role أو helper */}
-                      {(userRole === "athlete" || isAthlete) && (
+                      {/* روابط الأثليت */}
+                      {isUserAthlete && !isUserCoach && (
                         <>
                           <Link
                             to="/coaches"
@@ -349,7 +340,6 @@ function Navbar() {
                             <Search size={18} />
                             Find Coach
                           </Link>
-
                           <Link
                             to="/my-chats"
                             onClick={closeMenus}
@@ -358,7 +348,6 @@ function Navbar() {
                             <MessageCircle size={18} />
                             My Chats
                           </Link>
-
                           <Link
                             to="/ai-trainer"
                             onClick={closeMenus}
@@ -374,12 +363,8 @@ function Navbar() {
                         <div className="flex items-start gap-3 p-3 rounded-xl bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
                           <Clock size={18} className="mt-1" />
                           <div>
-                            <p className="font-semibold">
-                              Coach Request Pending
-                            </p>
-                            <p className="text-xs">
-                              Waiting for admin approval.
-                            </p>
+                            <p className="font-semibold">Coach Request Pending</p>
+                            <p className="text-xs">Waiting for admin approval.</p>
                           </div>
                         </div>
                       )}
@@ -388,28 +373,23 @@ function Navbar() {
                         <div className="flex items-start gap-3 p-3 rounded-xl bg-red-500/10 text-red-500">
                           <X size={18} className="mt-1" />
                           <div>
-                            <p className="font-semibold">
-                              Coach Request Rejected
-                            </p>
-                            <p className="text-xs">
-                              You can continue as an athlete.
-                            </p>
+                            <p className="font-semibold">Coach Request Rejected</p>
+                            <p className="text-xs">You can continue as an athlete.</p>
                           </div>
                         </div>
                       )}
 
-                      {/* التحقق من الـ coach بناءً على الـ role أو helper */}
-                      {(userRole === "coach" || isCoach) && (
+                      {/* روابط الكوتش */}
+                      {isUserCoach && (
                         <>
                           <Link
                             to="/dashboard"
                             onClick={closeMenus}
-                            className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                            className="flex items-center gap-3 p-3 rounded-xl bg-red-500/10 text-red-500 font-bold hover:bg-red-500/20 transition"
                           >
                             <Zap size={18} />
                             Dashboard
                           </Link>
-
                           <Link
                             to="/dashboard/chats"
                             onClick={closeMenus}
@@ -451,6 +431,7 @@ function Navbar() {
               </Link>
             )}
           </div>
+
           <button
             type="button"
             onClick={() => {
@@ -485,11 +466,7 @@ function Navbar() {
                 onClick={toggleTheme}
                 className={iconButtonClass}
               >
-                {theme === "dark" ? (
-                  <Sun size={20} />
-                ) : (
-                  <Moon size={20} />
-                )}
+                {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
               </button>
 
               {user && (
@@ -501,7 +478,6 @@ function Navbar() {
                   className={iconButtonClass}
                 >
                   <Bell size={20} />
-
                   {unreadNotifications > 0 && (
                     <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-6 h-6 rounded-full flex items-center justify-center font-bold">
                       {unreadNotifications}
@@ -522,7 +498,7 @@ function Navbar() {
                   Profile
                 </Link>
 
-                {(userRole === "athlete" || isAthlete) && (
+                {isUserAthlete && !isUserCoach && (
                   <>
                     <Link
                       to="/coaches"
@@ -532,7 +508,6 @@ function Navbar() {
                       <Search size={18} />
                       Find Coach
                     </Link>
-
                     <Link
                       to="/my-chats"
                       onClick={closeMenus}
@@ -541,7 +516,6 @@ function Navbar() {
                       <MessageCircle size={18} />
                       My Chats
                     </Link>
-
                     <Link
                       to="/ai-trainer"
                       onClick={closeMenus}
@@ -553,12 +527,12 @@ function Navbar() {
                   </>
                 )}
 
-                {(userRole === "coach" || isCoach) && (
+                {isUserCoach && (
                   <>
                     <Link
                       to="/dashboard"
                       onClick={closeMenus}
-                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition"
+                      className="flex items-center gap-3 p-3 rounded-xl bg-red-500/10 text-red-500 font-bold hover:bg-white dark:hover:bg-slate-800 transition"
                     >
                       <Zap size={18} />
                       Dashboard
