@@ -91,7 +91,7 @@ function AuthProvider({ children }) {
 
   // فحص المدرب المعتمد
   const isCoach =
-    (userRole === "coach" || roleName === "coach") &&
+    (user?.role === "coach") &&
     coachStatus === "approved";
 
   // اللاعب
