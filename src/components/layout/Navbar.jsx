@@ -29,7 +29,7 @@ import logo from "../../assets/logo/logo.png";
 
 function Navbar() {
   const navigate = useNavigate();
-  
+
   const [isOpen, setIsOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -45,21 +45,11 @@ function Navbar() {
     isPendingCoach,
     isRejectedCoach,
   } = useAuth();
-const authData = useAuth();
-  console.log("Navbar Auth Data Check:", authData);
-  console.log("Current User Object:", authData?.user);
+
   const { theme, toggleTheme } = useTheme();
 
-  // فحص مرن ومباشر للـ Role والـ Status من كائن المستخدم نفسه لتجنب أي تأخير في الـ Context
-  const userRole = user?.role?.toLowerCase() || "";
-  const coachStatus = user?.coachStatus?.toLowerCase() || "";
-
-  const isUserCoach = userRole === "coach" || isCoach || coachStatus === "approved";
-  const isUserAthlete = userRole === "athlete" || isAthlete || (!userRole && !isUserCoach);
-  
+  // فحص دقيق وشامل لصلاحية الأدمن أو السوبر أدمن بناءً على البيانات المتوفرة في الكائن
   const canAccessAdmin =
-    userRole === "admin" ||
-    userRole === "superadmin" ||
     user?.roleName === "SuperAdmin" ||
     user?.roleName === "Admin" ||
     user?.roleId === 6 ||
@@ -73,7 +63,8 @@ const authData = useAuth();
       if (notification.senderId) {
         return `/chat/${notification.senderId}`;
       }
-      return isUserCoach ? "/dashboard/chats" : "/my-chats";
+
+      return isCoach ? "/dashboard/chats" : "/my-chats";
     }
 
     if (
@@ -83,11 +74,12 @@ const authData = useAuth();
       if (notification.postId) {
         return `/forum?post=${notification.postId}`;
       }
+
       return "/forum";
     }
 
     if (notification.type === "plan_review") {
-      return isUserCoach ? "/dashboard/ai-plans" : "/ai-trainer";
+      return isCoach ? "/dashboard/ai-plans" : "/ai-trainer";
     }
 
     if (notification.type === "coach_status") {
@@ -98,31 +90,32 @@ const authData = useAuth();
   };
 
   const loadNotifications = async () => {
-    if (!user) {
-      setNotifications([]);
-      setUnreadNotifications(0);
-      return;
-    }
+      if (!user) {
+        setNotifications([]);
+        setUnreadNotifications(0);
+        return;
+      }
 
-    try {
-      const data = await getNotifications();
+      try {
+        const data = await getNotifications();
 
-      const list = Array.isArray(data) 
-        ? data 
-        : (Array.isArray(data?.notifications) ? data.notifications : (Array.isArray(data?.data) ? data.data : []));
+        // حماية تامة للتأكد من أننا نتعامل مع مصفوفة بغض النظر عن شكل الاستجابة
+        const list = Array.isArray(data) 
+          ? data 
+          : (Array.isArray(data?.notifications) ? data.notifications : (Array.isArray(data?.data) ? data.data : []));
 
-      const unreadCount = list.filter(
-        (notification) => notification.read === false
-      ).length;
+        const unreadCount = list.filter(
+          (notification) => notification.read === false
+        ).length;
 
-      setNotifications(list.slice(0, 6));
-      setUnreadNotifications(unreadCount);
-    } catch (error) {
-      console.error(error);
-      setNotifications([]);
-      setUnreadNotifications(0);
-    }
-  };
+        setNotifications(list.slice(0, 6));
+        setUnreadNotifications(unreadCount);
+      } catch (error) {
+        console.error(error);
+        setNotifications([]);
+        setUnreadNotifications(0);
+      }
+    };
 
   useEffect(() => {
     loadNotifications();
@@ -147,6 +140,7 @@ const authData = useAuth();
           markNotificationAsRead(notification.id)
         )
       );
+
       await loadNotifications();
     } catch (error) {
       console.error(error);
@@ -158,6 +152,7 @@ const authData = useAuth();
     { path: "/sports", label: "Sports" },
     { path: "/forum", label: "Forum" },
     { path: "/profile", label: "Profile" },
+    // استخدام canAccessAdmin لتضمين السوبر أدمن والأدمن في شريط التنقل الرئيسي
     ...(canAccessAdmin ? [{ path: "/admin", label: "Admin Panel" }] : []),
   ];
 
@@ -185,7 +180,7 @@ const authData = useAuth();
     logout();
     navigate("/");
   };
-
+  console.log(JSON.parse(localStorage.getItem('user')));
   return (
     <nav className="sticky top-0 z-50 border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-6">
@@ -200,6 +195,7 @@ const authData = useAuth();
               alt="SportsHub Logo"
               className="w-24 h-24 object-contain group-hover:scale-105 transition"
             />
+
             <span className="hidden sm:block text-3xl xl:text-4xl font-extrabold text-red-500">
               SportsHub
             </span>
@@ -223,7 +219,11 @@ const authData = useAuth();
               onClick={toggleTheme}
               className={iconButtonClass}
             >
-              {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+              {theme === "dark" ? (
+                <Sun size={20} />
+              ) : (
+                <Moon size={20} />
+              )}
             </button>
 
             {user && (
@@ -237,6 +237,7 @@ const authData = useAuth();
                   className={iconButtonClass}
                 >
                   <Bell size={20} />
+
                   {unreadNotifications > 0 && (
                     <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-6 h-6 rounded-full flex items-center justify-center font-bold">
                       {unreadNotifications}
@@ -249,6 +250,7 @@ const authData = useAuth();
                       <h3 className="font-bold text-slate-950 dark:text-white">
                         Notifications
                       </h3>
+
                       <button
                         type="button"
                         onClick={markAllAsRead}
@@ -282,11 +284,13 @@ const authData = useAuth();
                               <div className="mt-1 text-red-500">
                                 <Bell size={18} />
                               </div>
+
                               <div>
                                 <h4 className="font-bold text-slate-950 dark:text-white">
                                   {notification.title ||
                                     "New Notification"}
                                 </h4>
+
                                 <p className="text-sm text-slate-500 mt-1">
                                   {notification.message ||
                                     "You have a new update."}
@@ -313,9 +317,11 @@ const authData = useAuth();
                   className="flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-red-500 transition"
                 >
                   <User size={18} />
+
                   <span className="max-w-[120px] truncate">
                     {user.name || user.firstName || "Account"}
                   </span>
+
                   <ChevronDown size={16} />
                 </button>
 
@@ -331,8 +337,7 @@ const authData = useAuth();
                         Profile
                       </Link>
 
-                      {/* روابط الأثليت */}
-                      {isUserAthlete && !isUserCoach && (
+                      {isAthlete && (
                         <>
                           <Link
                             to="/coaches"
@@ -342,6 +347,7 @@ const authData = useAuth();
                             <Search size={18} />
                             Find Coach
                           </Link>
+
                           <Link
                             to="/my-chats"
                             onClick={closeMenus}
@@ -350,6 +356,7 @@ const authData = useAuth();
                             <MessageCircle size={18} />
                             My Chats
                           </Link>
+
                           <Link
                             to="/ai-trainer"
                             onClick={closeMenus}
@@ -365,8 +372,12 @@ const authData = useAuth();
                         <div className="flex items-start gap-3 p-3 rounded-xl bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
                           <Clock size={18} className="mt-1" />
                           <div>
-                            <p className="font-semibold">Coach Request Pending</p>
-                            <p className="text-xs">Waiting for admin approval.</p>
+                            <p className="font-semibold">
+                              Coach Request Pending
+                            </p>
+                            <p className="text-xs">
+                              Waiting for admin approval.
+                            </p>
                           </div>
                         </div>
                       )}
@@ -375,23 +386,27 @@ const authData = useAuth();
                         <div className="flex items-start gap-3 p-3 rounded-xl bg-red-500/10 text-red-500">
                           <X size={18} className="mt-1" />
                           <div>
-                            <p className="font-semibold">Coach Request Rejected</p>
-                            <p className="text-xs">You can continue as an athlete.</p>
+                            <p className="font-semibold">
+                              Coach Request Rejected
+                            </p>
+                            <p className="text-xs">
+                              You can continue as an athlete.
+                            </p>
                           </div>
                         </div>
                       )}
 
-                      {/* روابط الكوتش */}
-                      {isUserCoach && (
+                      {isCoach && (
                         <>
                           <Link
                             to="/dashboard"
                             onClick={closeMenus}
-                            className="flex items-center gap-3 p-3 rounded-xl bg-red-500/10 text-red-500 font-bold hover:bg-red-500/20 transition"
+                            className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                           >
                             <Zap size={18} />
                             Dashboard
                           </Link>
+
                           <Link
                             to="/dashboard/chats"
                             onClick={closeMenus}
@@ -433,7 +448,6 @@ const authData = useAuth();
               </Link>
             )}
           </div>
-
           <button
             type="button"
             onClick={() => {
@@ -468,7 +482,11 @@ const authData = useAuth();
                 onClick={toggleTheme}
                 className={iconButtonClass}
               >
-                {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+                {theme === "dark" ? (
+                  <Sun size={20} />
+                ) : (
+                  <Moon size={20} />
+                )}
               </button>
 
               {user && (
@@ -480,6 +498,7 @@ const authData = useAuth();
                   className={iconButtonClass}
                 >
                   <Bell size={20} />
+
                   {unreadNotifications > 0 && (
                     <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-6 h-6 rounded-full flex items-center justify-center font-bold">
                       {unreadNotifications}
@@ -500,7 +519,7 @@ const authData = useAuth();
                   Profile
                 </Link>
 
-                {isUserAthlete && !isUserCoach && (
+                {isAthlete && (
                   <>
                     <Link
                       to="/coaches"
@@ -510,6 +529,7 @@ const authData = useAuth();
                       <Search size={18} />
                       Find Coach
                     </Link>
+
                     <Link
                       to="/my-chats"
                       onClick={closeMenus}
@@ -518,6 +538,7 @@ const authData = useAuth();
                       <MessageCircle size={18} />
                       My Chats
                     </Link>
+
                     <Link
                       to="/ai-trainer"
                       onClick={closeMenus}
@@ -529,12 +550,12 @@ const authData = useAuth();
                   </>
                 )}
 
-                {isUserCoach && (
+                {isCoach && (
                   <>
                     <Link
                       to="/dashboard"
                       onClick={closeMenus}
-                      className="flex items-center gap-3 p-3 rounded-xl bg-red-500/10 text-red-500 font-bold hover:bg-white dark:hover:bg-slate-800 transition"
+                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition"
                     >
                       <Zap size={18} />
                       Dashboard
