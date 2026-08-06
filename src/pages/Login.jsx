@@ -33,31 +33,28 @@ function Login() {
     event.preventDefault();
 
     try {
-      const data = await loginUser(formData);
-      const loggedUser = data.user || data;
+      const response = await loginUser(formData);
       
-      console.log("LOGGED USER DATA:", loggedUser); // <--- أنظر ماذا يظهر هنا في الـ Console!
-      console.log("ROLE:", loggedUser.role);
-      console.log("COACH STATUS:", loggedUser.coachStatus);
-      // استدعاء دالة تسجيل الدخول لتخزين المستخدم في الـ Context والـ LocalStorage
+      // استخراج الـ user بدقة من داخل الـ data القادمة من الـ API
+      const loggedUser = response?.data?.user || response?.data || response;
+
+      console.log("LOGGED USER DATA:", loggedUser); 
+      console.log("ROLE:", loggedUser.role); // ستظهر الآن "coach" بوضوح
+
       login(loggedUser);
 
-      // اعطاء مهلة صغيرة جداً أو الانتقال مباشرة بعد التأكد من حفظ الـ State
-      setTimeout(() => {
-        if (loggedUser.role === "admin") {
-          navigate("/admin");
-        } else if (
-          loggedUser.role === "coach" &&
-          loggedUser.coachStatus === "approved"
-        ) {
-          navigate("/dashboard");
-        } else {
-          navigate("/profile");
-        }
-      }, 50);
-
+      if (loggedUser.role === "admin") {
+        navigate("/admin");
+      } else if (
+        loggedUser.role === "coach" &&
+        loggedUser.coachStatus === "approved"
+      ) {
+        navigate("/dashboard");
+      } else {
+        navigate("/profile");
+      }
     } catch (error) {
-      console.error("Login Error details:", error);
+      console.error(error);
       setError(
         error?.response?.data?.message ||
           "Invalid email or password"
