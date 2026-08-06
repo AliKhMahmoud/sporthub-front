@@ -6,6 +6,7 @@ import {
   LogOut,
   Users,
   ClipboardList,
+  Plus,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -21,17 +22,22 @@ function DashboardLayout() {
     },
     {
       label: "My Trainees",
-      path: "/dashboard/trainees",
+      path: "/dashboard/athletes",
       icon: Users,
     },
     {
-      label: "Training Requests",
-      path: "/dashboard/training-requests",
+      label: "Progress Reviews",
+      path: "/dashboard/progress-reviews",
       icon: ClipboardList,
     },
     {
       label: "Pending AI Plans",
       path: "/dashboard/pending-ai-plans",
+      icon: Plus,
+    },
+    {
+      label: "Chats",
+      path: "/dashboard/chats",
       icon: Bot,
     },
   ];

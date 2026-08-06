@@ -111,7 +111,7 @@ function App() {
       >
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/dashboard/athletes" element={<DashboardAthletes />} />
-        <Route path="/dashboard/ai-plans" element={<DashboardAiPlans />} />
+        <Route path="/dashboard/pending-ai-plans" element={<DashboardAiPlans />} />
         <Route path="/dashboard/progress-reviews" element={<DashboardProgressReviews />} />
         <Route path="/dashboard/chats" element={<CoachChats />} />
       </Route>
