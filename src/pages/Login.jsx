@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import Button from "../components/ui/Button";
-import Input from "../components/ui/Input";
 
 import { useAuth } from "../context/AuthContext";
 import { loginUser } from "../services/authService";
@@ -75,21 +74,31 @@ function Login() {
         )}
 
         <form onSubmit={handleLogin} className="space-y-5">
-          <Input
-            name="email"
-            type="email"
-            placeholder="Email Address"
-            value={formData.email}
-            onChange={handleChange}
-          />
+          <div className="space-y-1">
+            <label className="text-sm text-slate-300">Email Address</label>
+            <input
+              name="email"
+              type="email"
+              placeholder="Email Address"
+              value={formData.email}
+              onChange={handleChange}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500"
+              required
+            />
+          </div>
 
-          <Input
-            name="password"
-            type="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={handleChange}
-          />
+          <div className="space-y-1">
+            <label className="text-sm text-slate-300">Password</label>
+            <input
+              name="password"
+              type="password"
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleChange}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500"
+              required
+            />
+          </div>
 
           <div className="flex items-center justify-between text-sm">
             <label className="flex items-center gap-2 text-slate-400">
