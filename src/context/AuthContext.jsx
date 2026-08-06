@@ -72,23 +72,20 @@ export const AuthProvider = ({ children }) => {
     setUser((prevUser) => (prevUser ? { ...prevUser, ...updatedData } : updatedData));
   };
 
-  // استخراج القيم الأساسية بشكل ديناميكي لتتحدث فور تغير الـ user
   const userRole = user?.role?.toLowerCase() || "";
   const coachStatus = user?.coachStatus?.toLowerCase() || "";
 
-  const isAdmin =
-    userRole === "admin" ||
-    userRole === "superadmin" ||
-    user?.roleName === "SuperAdmin" ||
-    user?.roleName === "Admin" ||
-    user?.roleId === 6 ||
-    user?.isAdmin === true;
+  const isAdmin = userRole === "admin" || userRole === "superadmin";
 
-  const isCoach = userRole === "coach" && coachStatus === "approved";
+  const isCoach = userRole === "coach" && (coachStatus === "approved" || !coachStatus);
+  
   const isPendingCoach = userRole === "coach" && coachStatus === "pending";
   const isRejectedCoach = userRole === "coach" && coachStatus === "rejected";
-  const isAthlete = userRole === "athlete" || (!isCoach && !isAdmin && !isPendingCoach && !isRejectedCoach);
 
+  const isAthlete = userRole === "athlete";
+
+
+  
   return (
     <AuthContext.Provider
       value={{
