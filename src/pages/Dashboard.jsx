@@ -7,8 +7,8 @@ import {
   Bot,
   Plus,
 } from "lucide-react";
+import { getCoachDashboardOverview } from "../services/dashboardService";
 
-import { getCoachDashboardOverview } from "../services/coachDashboardService";
 
 function Dashboard() {
   const navigate = useNavigate();
