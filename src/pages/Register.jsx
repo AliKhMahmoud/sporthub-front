@@ -144,18 +144,8 @@ function Register() {
       login(loggedUser);
 
       setTimeout(() => {
-        if (loggedUser.role === "admin") {
-          navigate("/admin");
-        } else if (
-          loggedUser.role === "coach" &&
-          loggedUser.coachStatus === "approved"
-        ) {
-          navigate("/dashboard");
-        } else {
-          navigate("/profile");
-        }
-      }, 1500);
-
+          window.location.href = "/";
+        }, 1500);
     } catch (err) {
       console.error(err);
       
