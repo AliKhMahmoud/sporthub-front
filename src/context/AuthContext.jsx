@@ -1,4 +1,4 @@
-import  { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import { getCurrentUser, loginUser, logoutUser } from "../services/authService"; 
 
 const AuthContext = createContext(null);
@@ -7,24 +7,20 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // جلب بيانات المستخدم عند تحميل التطبيق لأول مرة
   useEffect(() => {
     const loadUser = async () => {
       try {
         const response = await getCurrentUser();
         console.log("API getCurrentUser Response:", response);
 
+        // تعديل هنا لضمان التقاط المستخدم من استجابة الـ API لديك
         const currentUser =
           response?.data?.user ||
-          response?.data ||
           response?.user ||
+          response?.data ||
           response;
 
-        if (currentUser) {
-          setUser(currentUser);
-        } else {
-          setUser(null);
-        }
+        setUser(currentUser || null);
       } catch (error) {
         console.error("Error loading user in AuthContext:", error);
         setUser(null);
@@ -36,16 +32,14 @@ export const AuthProvider = ({ children }) => {
     loadUser();
   }, []);
 
-  // دالة تسجيل الدخول
   const login = async (credentials) => {
     try {
-      const response = await loginUser(credentials); // استدعاء دالة ملف الخدمات الصحيحة
+      const response = await loginUser(credentials);
       
-      // جلب بيانات المستخدم كما كانت سابقاً
       const loggedInUser =
         response?.data?.user ||
-        response?.data ||
         response?.user ||
+        response?.data ||
         response;
       
       setUser(loggedInUser);
@@ -56,7 +50,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // دالة تسجيل الخروج
   const logout = async () => {
     try {
       await logoutUser();
@@ -67,7 +60,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // تحديث بيانات المستخدم محلياً
   const updateUser = (updatedData) => {
     setUser((prevUser) => (prevUser ? { ...prevUser, ...updatedData } : updatedData));
   };
@@ -76,16 +68,11 @@ export const AuthProvider = ({ children }) => {
   const coachStatus = user?.coachStatus?.toLowerCase() || "";
 
   const isAdmin = userRole === "admin" || userRole === "superadmin";
-
   const isCoach = userRole === "coach" && (coachStatus === "approved" || !coachStatus);
-  
   const isPendingCoach = userRole === "coach" && coachStatus === "pending";
   const isRejectedCoach = userRole === "coach" && coachStatus === "rejected";
-
   const isAthlete = userRole === "athlete";
 
-
-  
   return (
     <AuthContext.Provider
       value={{
