@@ -1,19 +1,28 @@
-import  { createContext, useContext, useState, useEffect } from "react";
-import { getCurrentUser, loginUser, logoutUser } from "../services/authService"; 
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
-const AuthContext = createContext(null);
+import {
+  getCurrentUser,
+  logoutUser,
+} from "../services/authService";
 
-export const AuthProvider = ({ children }) => {
+const AuthContext = createContext();
+
+function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // جلب بيانات المستخدم عند تحميل التطبيق لأول مرة
   useEffect(() => {
     const loadUser = async () => {
       try {
         const response = await getCurrentUser();
-        console.log("API getCurrentUser Response:", response);
+        console.log("API getCurrentUser Response:", response); // طباعة للتاكد من الـ API
 
+        // استخراج المستخدم بأي شكل يأتي به الرد
         const currentUser =
           response?.data?.user ||
           response?.data ||
@@ -36,68 +45,82 @@ export const AuthProvider = ({ children }) => {
     loadUser();
   }, []);
 
-  // دالة تسجيل الدخول
-  const login = async (credentials) => {
-    try {
-      const response = await loginUser(credentials);
-      const loggedInUser =
-        response?.data?.user ||
-        response?.data ||
-        response?.user ||
-        response;
+  const login = (userData) => {
+    // معالجة البيانات أثناء تسجيل الدخول المباشر والتأكد من استخراج الـ data بدقة
+    const actualUser = 
+      userData?.data?.user || 
+      userData?.data || 
+      userData?.user || 
+      userData;
       
-      setUser(loggedInUser);
-      return loggedInUser;
-    } catch (error) {
-      console.error("Login error:", error);
-      throw error;
-    }
+    setUser(actualUser);
   };
 
-  // دالة تسجيل الخروج
+  const updateUser = (updatedData) => {
+    setUser((prev) => ({
+      ...prev,
+      ...updatedData,
+    }));
+  };
+
   const logout = async () => {
     try {
       await logoutUser();
     } catch (error) {
-      console.error("Logout error:", error);
+      console.error(error);
     } finally {
       setUser(null);
     }
   };
 
-  // تحديث بيانات المستخدم محلياً
-  const updateUser = (updatedData) => {
-    setUser((prevUser) => (prevUser ? { ...prevUser, ...updatedData } : updatedData));
-  };
-
-  // استخراج القيم الأساسية بشكل ديناميكي لتتحدث فور تغير الـ user
+  // توحيد النصوص وحمايتها من تباين الحروف الصغيرة والكبيرة (Case-insensitive)
   const userRole = user?.role?.toLowerCase() || "";
+  const roleName = user?.roleName?.toLowerCase() || "";
   const coachStatus = user?.coachStatus?.toLowerCase() || "";
+  const requestedRole = user?.requestedRole?.toLowerCase() || "";
 
+  // فحص الأدمن
   const isAdmin =
-    userRole === "admin" ||
-    userRole === "superadmin" ||
-    user?.roleName === "SuperAdmin" ||
-    user?.roleName === "Admin" ||
+    roleName === "superadmin" ||
+    roleName === "admin" ||
     user?.roleId === 6 ||
-    user?.isAdmin === true;
+    user?.roleId === "6" ||
+    user?.isAdmin === true ||
+    userRole === "admin" ||
+    userRole === "superadmin";
 
-  const isCoach = userRole === "coach" && coachStatus === "approved";
-  const isPendingCoach = userRole === "coach" && coachStatus === "pending";
-  const isRejectedCoach = userRole === "coach" && coachStatus === "rejected";
-  const isAthlete = userRole === "athlete" || (!isCoach && !isAdmin && !isPendingCoach && !isRejectedCoach);
+  // فحص المدرب المعتمد
+  const isCoach =
+    (userRole === "coach" || roleName === "coach") &&
+    coachStatus === "approved";
+
+  // اللاعب
+  const isAthlete =
+    !isAdmin &&
+    !isCoach &&
+    (userRole === "athlete" ||
+      roleName === "athlete" ||
+      (!userRole && !roleName));
+
+  const isPendingCoach =
+    (userRole === "coach" || requestedRole === "coach") &&
+    coachStatus === "pending";
+
+  const isRejectedCoach =
+    (userRole === "coach" || requestedRole === "coach") &&
+    coachStatus === "rejected";
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        loading,
         login,
         logout,
         updateUser,
-        loading,
+        isAdmin,
         isCoach,
         isAthlete,
-        isAdmin,
         isPendingCoach,
         isRejectedCoach,
       }}
@@ -105,7 +128,10 @@ export const AuthProvider = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-// eslint-disable-next-line react-refresh/only-export-components
-export const useAuth = () => useContext(AuthContext);
+function useAuth() {
+  return useContext(AuthContext);
+}
+
+export { AuthProvider, useAuth };
