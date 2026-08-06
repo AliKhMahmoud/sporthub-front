@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect } from "react";
-import { getCurrentUser, login as loginService, logout as logoutService } from "../services/authService"; // عدل المسار حسب ملفاتك
+import  { createContext, useContext, useState, useEffect } from "react";
+import { getCurrentUser, loginUser, logoutUser } from "../services/authService"; 
 
 const AuthContext = createContext(null);
 
@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }) => {
   // دالة تسجيل الدخول
   const login = async (credentials) => {
     try {
-      const response = await loginService(credentials);
+      const response = await loginUser(credentials);
       const loggedInUser =
         response?.data?.user ||
         response?.data ||
@@ -57,7 +57,7 @@ export const AuthProvider = ({ children }) => {
   // دالة تسجيل الخروج
   const logout = async () => {
     try {
-      await logoutService();
+      await logoutUser();
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
