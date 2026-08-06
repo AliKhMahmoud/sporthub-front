@@ -35,7 +35,6 @@ function Login() {
     try {
       const response = await loginUser(formData);
       
-      // استخراج الـ user بدقة (بما أن الـ Backend يرجع بيانات اليوزر مباشرة داخل response.data)
       const loggedUser = response?.data || response;
 
       console.log("LOGGED USER DATA:", loggedUser); 
@@ -43,22 +42,20 @@ function Login() {
 
       login(loggedUser);
 
-      // التوجيه بناءً على الدور وحالة الحساب
-      if (loggedUser.role === "admin") {
-        navigate("/admin");
-      } else if (loggedUser.role === "coach") {
-        if (loggedUser.coachStatus === "approved") {
-          navigate("/dashboard");
-        } else if (loggedUser.coachStatus === "pending") {
+      // التحقق من حالات الكوتش المعلق أو المرفوض أولاً لإظهار الخطأ المناسب إذا لزم
+      if (loggedUser.role === "coach") {
+        if (loggedUser.coachStatus === "pending") {
           setError("Your account is pending admin approval.");
+          return;
         } else if (loggedUser.coachStatus === "rejected") {
           setError("Your coach request has been rejected.");
-        } else {
-          navigate("/profile");
+          return;
         }
-      } else {
-        navigate("/profile");
       }
+
+      // توجيه الجميع إلى الصفحة الرئيسية (Home) مباشرة بعد تسجيل الدخول الناجح
+      navigate("/");
+
     } catch (error) {
       console.error(error);
       setError(
