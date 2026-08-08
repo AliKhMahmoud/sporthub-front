@@ -43,7 +43,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
     title: post.title || "",
     body: post.body || "",
   });
-
+  console.log("Comment Data:", comments);
   const canManagePost =
     currentUserId &&
     postOwnerId &&
