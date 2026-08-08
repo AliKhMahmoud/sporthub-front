@@ -35,7 +35,7 @@ export const sports = [
   },
   {
     id: 5,
-    name: "Fitness",
+    name: "Cardio & Fitness",
     slug: "fitness",
     description: "Boost endurance, burn calories, and improve your daily health.",
     image: fitness,
