@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { CheckCircle, X, Edit, Trash2, Plus } from "lucide-react";
+import { CheckCircle, X, Edit, Trash2, Plus, AlertCircle } from "lucide-react";
 
 import Container from "../components/ui/Container";
 import Button from "../components/ui/Button";
@@ -28,12 +28,18 @@ function SportsDetails() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentPlanId, setCurrentPlanId] = useState(null);
+  
+  // حالة الفورم مطابقة لـ Joi Validation (الحروف صغيرة للمستوى + إضافة durationWeeks)
   const [planForm, setPlanForm] = useState({
     title: "",
     description: "",
-    level: "Beginner",
+    level: "beginner",
+    durationWeeks: 4,
     exercises: [{ name: "", sets: 3, reps: 10 }]
   });
+
+  // حالة لتخزين رسالة الخطأ لتظهر داخل الفورم
+  const [formError, setFormError] = useState("");
 
   // 1. جلب الرياضة والخطط الخاصة بها
   useEffect(() => {
@@ -102,10 +108,12 @@ function SportsDetails() {
   const handleOpenAddModal = () => {
     setIsEditing(false);
     setCurrentPlanId(null);
+    setFormError(""); // تصفير الأخطاء السابقة
     setPlanForm({
       title: "",
       description: "",
-      level: "Beginner",
+      level: "beginner",
+      durationWeeks: 4,
       exercises: [{ name: "", sets: 3, reps: 10 }]
     });
     setIsModalOpen(true);
@@ -116,18 +124,22 @@ function SportsDetails() {
     e.stopPropagation(); // منع ضغط الكرت بالكامل
     setIsEditing(true);
     setCurrentPlanId(plan._id);
+    setFormError(""); // تصفير الأخطاء السابقة
     setPlanForm({
       title: plan.title,
       description: plan.description,
-      level: plan.level,
+      level: plan.level || "beginner",
+      durationWeeks: plan.durationWeeks || 4,
       exercises: plan.exercises && plan.exercises.length > 0 ? plan.exercises : [{ name: "", sets: 3, reps: 10 }]
     });
     setIsModalOpen(true);
   };
 
-  // حفظ الخطة (إضافة أو تعديل)
+  // حفظ الخطة (إضافة أو تعديل) مع عرض الخطأ داخل الفورم
   const handleSavePlan = async (e) => {
     e.preventDefault();
+    setFormError(""); // إعادة ضبط الخطأ قبل الإرسال
+
     try {
       const payload = {
         ...planForm,
@@ -148,7 +160,9 @@ function SportsDetails() {
       setIsModalOpen(false);
     } catch (error) {
       console.error("Error saving plan:", error);
-      alert(error.response?.data?.message || "Failed to save plan");
+      // التقاط رسالة الخطأ القادمة من الـ Backend (Joi) وعرضها داخل الفورم
+      const errorMessage = error.response?.data?.message || "Failed to save plan. Please check your inputs.";
+      setFormError(errorMessage);
     }
   };
 
@@ -211,7 +225,7 @@ function SportsDetails() {
                   className="bg-slate-800 rounded-2xl p-6 border border-slate-700 hover:border-red-500 transition cursor-pointer"
                 >
                   <div className="flex justify-between items-start">
-                    <span className="text-red-400 font-semibold">{plan.level}</span>
+                    <span className="text-red-400 font-semibold capitalize">{plan.level}</span>
                     
                     {(user?.role === 'coach' || user?.role === 'admin') && (
                       <div className="flex gap-2">
@@ -233,6 +247,7 @@ function SportsDetails() {
                   
                   <h3 className="text-2xl font-bold my-3">{plan.title}</h3>
                   <p className="text-slate-400 mb-5 line-clamp-2">{plan.description}</p>
+                  <p className="text-xs text-slate-500 mb-4">Duration: {plan.durationWeeks} weeks</p>
                   
                   <Button variant="secondary">
                     View Details
@@ -253,7 +268,8 @@ function SportsDetails() {
               </button>
             </div>
             
-            <p className="text-slate-300 mb-6">{selectedPlan.description}</p>
+            <p className="text-slate-300 mb-2">{selectedPlan.description}</p>
+            <p className="text-sm text-red-400 font-medium mb-6">Level: {selectedPlan.level} | Duration: {selectedPlan.durationWeeks} weeks</p>
 
             {user?.role === 'athlete' && !activeProgress && (
               <Button onClick={handleStartWorkout} className="bg-red-600 hover:bg-red-700">
@@ -325,6 +341,14 @@ function SportsDetails() {
                 </button>
               </div>
 
+              {/* عرض رسالة الخطأ داخل الفورم إذا وجدت */}
+              {formError && (
+                <div className="mb-6 bg-red-950/50 border border-red-500 text-red-300 p-4 rounded-xl flex items-center gap-3 text-sm">
+                  <AlertCircle size={20} className="shrink-0 text-red-500" />
+                  <span>{formError}</span>
+                </div>
+              )}
+
               <form onSubmit={handleSavePlan} className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium mb-2">Title</label>
@@ -350,17 +374,34 @@ function SportsDetails() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Level</label>
-                  <select 
-                    value={planForm.level} 
-                    onChange={(e) => setPlanForm({ ...planForm, level: e.target.value })}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-red-500"
-                  >
-                    <option value="Beginner">Beginner</option>
-                    <option value="Intermediate">Intermediate</option>
-                    <option value="Advanced">Advanced</option>
-                  </select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* مطابقة القيم مع Joi Schema (beginner, intermediate, advanced) */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Level</label>
+                    <select 
+                      value={planForm.level} 
+                      onChange={(e) => setPlanForm({ ...planForm, level: e.target.value })}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-red-500"
+                    >
+                      <option value="beginner">Beginner</option>
+                      <option value="intermediate">Intermediate</option>
+                      <option value="advanced">Advanced</option>
+                    </select>
+                  </div>
+
+                  {/* حقل مدة الخطة بالأسابيع المطلوبة في الـ Joi Schema */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Duration (Weeks)</label>
+                    <input 
+                      type="number" 
+                      min="1"
+                      max="52"
+                      required
+                      value={planForm.durationWeeks} 
+                      onChange={(e) => setPlanForm({ ...planForm, durationWeeks: Number(e.target.value) })}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-red-500"
+                    />
+                  </div>
                 </div>
 
                 <div>
