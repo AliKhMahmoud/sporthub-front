@@ -26,7 +26,7 @@ import {
 function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
   const { user: currentUser } = useAuth();
 
-  const currentUserId = currentUser?.id || currentUser?.email;
+  const currentUserId = currentUser?._id || currentUser?.id || currentUser?.email;
   const postId = post._id || post.id;
   const postOwnerId = post.author?._id || post.author?.id || post.authorId;
 
