@@ -2,12 +2,24 @@ import { useState } from "react";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
 
+// Map sport names to IDs (adjust these based on your backend)
+const SPORT_MAP = {
+  Fitness: "660f7a5c8f8f8f8f8f8f8f01",
+  Boxing: "660f7a5c8f8f8f8f8f8f8f02",
+  Bodybuilding: "660f7a5c8f8f8f8f8f8f8f03",
+  Karate: "660f7a5c8f8f8f8f8f8f8f04",
+  Taekwondo: "660f7a5c8f8f8f8f8f8f8f05",
+};
+
 function CreatePostForm({ onCreatePost }) {
   const [formData, setFormData] = useState({
     title: "",
+    body: "",
     sport: "Fitness",
-    tag: "Discussion",
+    media: [],
   });
+
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -17,17 +29,44 @@ function CreatePostForm({ onCreatePost }) {
     }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!formData.title.trim()) return;
+    
+    if (!formData.title.trim()) {
+      console.error("Title is required");
+      return;
+    }
 
-    onCreatePost(formData);
+    if (!formData.body.trim()) {
+      console.error("Body/description is required");
+      return;
+    }
 
-    setFormData({
-      title: "",
-      sport: "Fitness",
-      tag: "Discussion",
-    });
+    setIsLoading(true);
+
+    try {
+      // Prepare data for backend
+      const postData = {
+        title: formData.title.trim(),
+        body: formData.body.trim(),
+        sportId: SPORT_MAP[formData.sport],
+        media: formData.media,
+      };
+
+      await onCreatePost(postData);
+
+      // Reset form
+      setFormData({
+        title: "",
+        body: "",
+        sport: "Fitness",
+        media: [],
+      });
+    } catch (error) {
+      console.error("Error creating post:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -41,9 +80,19 @@ function CreatePostForm({ onCreatePost }) {
 
       <Input
         name="title"
-        placeholder="What do you want to discuss?"
+        placeholder="What's the title of your post?"
         value={formData.title}
         onChange={handleChange}
+        required
+      />
+
+      <textarea
+        name="body"
+        placeholder="Write your post content here..."
+        value={formData.body}
+        onChange={handleChange}
+        className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-slate-900 dark:text-white resize-none min-h-24"
+        required
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -59,22 +108,14 @@ function CreatePostForm({ onCreatePost }) {
           <option value="Karate">Karate</option>
           <option value="Taekwondo">Taekwondo</option>
         </select>
-
-        <select
-          name="tag"
-          value={formData.tag}
-          onChange={handleChange}
-          className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-slate-900 dark:text-white"
-        >
-          <option value="Discussion">Discussion</option>
-          <option value="Question">Question</option>
-          <option value="Training">Training</option>
-          <option value="Progress">Progress</option>
-        </select>
       </div>
 
-      <Button type="submit" className="w-full md:w-auto">
-        Publish Post
+      <Button 
+        type="submit" 
+        className="w-full md:w-auto"
+        disabled={isLoading}
+      >
+        {isLoading ? "Publishing..." : "Publish Post"}
       </Button>
     </form>
   );

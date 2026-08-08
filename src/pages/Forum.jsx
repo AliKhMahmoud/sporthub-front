@@ -11,14 +11,12 @@ import { useAuth } from "../context/AuthContext";
 
 import { forumCategories } from "../features/forum/data/forumData";
 
-// استدعاء الخدمات من الملف الموحد الذي أنشأناه
 import {
   getForumPosts,
   getPostsBySport,
   createForumPost,
   updateForumPost,
   deleteForumPost,
-  
 } from "../services/forumService";
 
 function Forum() {
@@ -27,45 +25,61 @@ function Forum() {
 
   const selectedPostId = new URLSearchParams(location.search).get("post");
 
-  // الصلاحية: المدربين أو الآدمن
+  // Permissions: Coaches or Admins or Publishers can create posts
   const canCreatePost = isCoach || isAdmin || user?.role === "publisher";
 
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  // جلب المنشورات من الباك إند
-  const loadPosts = async (category = activeCategory) => {
+  // Load posts from backend
+  const loadPosts = async (category = activeCategory, page = 1) => {
     setLoading(true);
     try {
-      let res;
+      let response;
+      const params = {
+        page,
+        limit: 10,
+        sort: "latest",
+      };
+
       if (category === "All") {
-        res = await getForumPosts();
+        response = await getForumPosts(params);
       } else {
-        // إذا كان الفلتر بحسب الرياضة
-        res = await getPostsBySport(category);
+        // Filter by sport (category is sport slug or name)
+        response = await getPostsBySport(category, params);
       }
 
-      // الباك إند يرجع البيانات داخل res.data.posts أو res.data مباشرة
-      const fetchedPosts = res?.data?.posts || res?.data || [];
+      // Extract posts and pagination data
+      const responseData = response?.data || response;
+      const fetchedPosts = responseData?.posts || [];
+      const pagination = responseData?.pagination || {};
+
       setPosts(fetchedPosts);
+      setCurrentPage(pagination.page || 1);
+      setTotalPages(pagination.pages || 1);
     } catch (error) {
       console.error("Error loading posts:", error);
       setPosts([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
   };
 
+  // Load posts when category or page changes
   useEffect(() => {
-    loadPosts(activeCategory);
-  }, [activeCategory]);
+    loadPosts(activeCategory, currentPage);
+  }, [activeCategory, currentPage]);
 
-  // التمرير التلقائي للبوست المحدد عبر URL Query
+  // Auto-scroll to selected post
   useEffect(() => {
     if (!selectedPostId) return;
 
     setActiveCategory("All");
+    setCurrentPage(1);
 
     const timer = setTimeout(() => {
       const postElement = document.getElementById(`post-${selectedPostId}`);
@@ -75,39 +89,45 @@ function Forum() {
           block: "center",
         });
       }
-    }, 300);
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [selectedPostId]);
 
-  // إنشاء منشور جديد
+  // Create new post
   const createPost = async (postData) => {
-    if (!canCreatePost) return;
+    if (!canCreatePost) {
+      console.error("You don't have permission to create posts");
+      return;
+    }
 
     try {
-      // الباك إند يأخذ الـ author تلقائياً من الـ Token
       await createForumPost(postData);
-      await loadPosts(); // إعادة تحميل المنشورات
+      // Reset to first page and reload
+      setCurrentPage(1);
+      await loadPosts(activeCategory, 1);
     } catch (error) {
       console.error("Failed to create post:", error);
     }
   };
 
-  // حذف منشور
+  // Delete post
   const deletePost = async (postId) => {
+    if (!confirm("Are you sure you want to delete this post?")) return;
+
     try {
       await deleteForumPost(postId);
-      await loadPosts();
+      await loadPosts(activeCategory, currentPage);
     } catch (error) {
       console.error("Failed to delete post:", error);
     }
   };
 
-  // تعديل منشور
+  // Update post
   const updatePost = async (postId, updatedData) => {
     try {
       await updateForumPost(postId, updatedData);
-      await loadPosts();
+      await loadPosts(activeCategory, currentPage);
     } catch (error) {
       console.error("Failed to update post:", error);
     }
@@ -135,7 +155,10 @@ function Forum() {
                 <button
                   key={category}
                   type="button"
-                  onClick={() => setActiveCategory(category)}
+                  onClick={() => {
+                    setActiveCategory(category);
+                    setCurrentPage(1);
+                  }}
                   className={
                     activeCategory === category
                       ? "w-full text-left bg-red-500 text-white px-4 py-3 rounded-xl transition"
@@ -193,6 +216,37 @@ function Forum() {
                 })
               )}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-3 mt-8">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(1, prev - 1))
+                  }
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 disabled:opacity-50 disabled:cursor-not-allowed hover:border-red-500 transition"
+                >
+                  Previous
+                </button>
+
+                <span className="text-slate-600 dark:text-slate-400">
+                  Page {currentPage} of {totalPages}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 disabled:opacity-50 disabled:cursor-not-allowed hover:border-red-500 transition"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         </section>
       </Container>
