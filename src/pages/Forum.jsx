@@ -15,8 +15,8 @@ import {
   getForumPosts,
   getPostsBySport,
   createForumPost,
-  updateForumPost,
   deleteForumPost,
+  updateForumPost,
 } from "../services/forumService";
 
 function Forum() {

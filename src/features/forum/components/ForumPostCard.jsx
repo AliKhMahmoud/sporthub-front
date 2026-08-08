@@ -19,9 +19,9 @@ import {
   createPostComment,
   updatePostComment,
   deletePostComment,
-  likePost,
   unlikePost,
-} from "../../../services/forumInteractionService";
+  likePost,
+} from "../../../services/forumService";
 
 function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
   const { user: currentUser } = useAuth();
