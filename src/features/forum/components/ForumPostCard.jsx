@@ -5,6 +5,7 @@ import {
   X,
   Pencil,
   Trash2,
+  Maximize2,
 } from "lucide-react";
 
 import { useAuth } from "../../../context/AuthContext";
@@ -34,7 +35,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
   const [likesCount, setLikesCount] = useState(post.likes?.length || 0);
 
   const [comments, setComments] = useState([]);
-  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false); // نافذة التفاصيل الشاملة
   const [isEditPostOpen, setIsEditPostOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [isLoadingComments, setIsLoadingComments] = useState(false);
@@ -43,7 +44,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
     title: post.title || "",
     body: post.body || "",
   });
-  console.log("Comment Data:", comments);
+
   const canManagePost =
     currentUserId &&
     postOwnerId &&
@@ -76,8 +77,8 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
     }
   };
 
-  const openComments = async () => {
-    setIsCommentsOpen(true);
+  const openDetailsModal = async () => {
+    setIsDetailsOpen(true);
     await loadComments();
   };
 
@@ -86,18 +87,15 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
 
     try {
       if (liked) {
-        // إذا كان معجباً به مسبقاً، نقوم بإلغاء الإعجاب
         await unlikePost(postId);
         setLiked(false);
         setLikesCount((prev) => Math.max(0, prev - 1));
       } else {
-        // إذا لم يكن معجباً به، نقوم بإضافة إعجاب
         await likePost(postId);
         setLiked(true);
         setLikesCount((prev) => prev + 1);
       }
 
-      // إرسال إشعار لصاحب المنشور إذا لم يكن المستخدم الحالي هو صاحب المنشور
       if (
         !liked &&
         postOwnerId &&
@@ -120,15 +118,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
   const addComment = async (event) => {
     event.preventDefault();
 
-    if (!currentUserId) {
-      console.error("User not authenticated");
-      return;
-    }
-
-    if (!commentText.trim()) {
-      console.error("Comment text is required");
-      return;
-    }
+    if (!currentUserId || !commentText.trim()) return;
 
     try {
       const response = await createPostComment(postId, {
@@ -139,7 +129,6 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
       setComments((prev) => [createdComment, ...prev]);
       setCommentText("");
 
-      // Send notification to post owner
       if (
         postOwnerId &&
         String(postOwnerId) !== String(currentUserId) &&
@@ -162,7 +151,6 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
   const deleteCommentHandler = async (commentId) => {
     try {
       await deletePostComment(commentId);
-
       setComments((prev) =>
         prev.filter(
           (comment) =>
@@ -176,8 +164,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
 
   const editComment = async (commentId) => {
     const currentComment = comments.find(
-      (comment) =>
-        String(comment._id || comment.id) === String(commentId)
+      (comment) => String(comment._id || comment.id) === String(commentId)
     );
 
     const newText = window.prompt(
@@ -215,16 +202,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
 
   const savePostEdit = (event) => {
     event.preventDefault();
-
-    if (!canManagePost) return;
-    if (!editPostData.title.trim()) {
-      console.error("Title is required");
-      return;
-    }
-    if (!editPostData.body.trim()) {
-      console.error("Body is required");
-      return;
-    }
+    if (!canManagePost || !editPostData.title.trim() || !editPostData.body.trim()) return;
 
     onUpdatePost(postId, editPostData);
     setIsEditPostOpen(false);
@@ -232,72 +210,83 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
 
   return (
     <>
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-red-500 transition">
-        <div className="flex justify-between items-start gap-4 mb-3">
-          <div className="flex-1">
-            <span className="text-red-500 dark:text-red-400 font-semibold">
-              {typeof post.sport === "object" ? post.sport?.name : post.sport}
-            </span>
+      {/* Card Preview */}
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-red-500 transition flex flex-col justify-between">
+        <div>
+          <div className="flex justify-between items-start gap-4 mb-3">
+            <div className="flex-1">
+              <span className="text-red-500 dark:text-red-400 font-semibold text-sm">
+                {typeof post.sport === "object" ? post.sport?.name : post.sport}
+              </span>
 
-            <h2 className="text-2xl font-bold mt-3 mb-3 text-slate-950 dark:text-white">
-              {post.title}
-            </h2>
-
-            <p className="text-slate-600 dark:text-slate-400 mb-3 line-clamp-2">
-              {post.body}
-            </p>
-
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Posted by {post.author?.name || "User"}
-            </p>
-          </div>
-
-          {canManagePost && (
-            <div className="flex gap-2 flex-shrink-0">
-              <button
-                type="button"
-                onClick={() => setIsEditPostOpen(true)}
-                className="w-9 h-9 rounded-xl border border-slate-300 dark:border-slate-700 flex items-center justify-center hover:border-red-500 transition"
-                title="Edit post"
+              <h2 
+                onClick={openDetailsModal}
+                className="text-2xl font-bold mt-3 mb-3 text-slate-950 dark:text-white cursor-pointer hover:text-red-500 transition"
               >
-                <Pencil size={17} />
-              </button>
+                {post.title}
+              </h2>
 
-              <button
-                type="button"
-                onClick={() => onDeletePost(postId)}
-                className="w-9 h-9 rounded-xl border border-slate-300 dark:border-slate-700 flex items-center justify-center hover:border-red-500 hover:text-red-500 transition"
-                title="Delete post"
-              >
-                <Trash2 size={17} />
-              </button>
+              <p className="text-slate-600 dark:text-slate-400 mb-4 line-clamp-3">
+                {post.body}
+              </p>
+
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Posted by {post.author?.name || "User"}
+              </p>
             </div>
-          )}
+
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={openDetailsModal}
+                className="w-9 h-9 rounded-xl border border-slate-300 dark:border-slate-700 flex items-center justify-center hover:border-red-500 hover:text-red-500 transition"
+                title="View full post & comments"
+              >
+                <Maximize2 size={17} />
+              </button>
+
+              {canManagePost && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditPostOpen(true)}
+                    className="w-9 h-9 rounded-xl border border-slate-300 dark:border-slate-700 flex items-center justify-center hover:border-red-500 transition"
+                    title="Edit post"
+                  >
+                    <Pencil size={17} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onDeletePost(postId)}
+                    className="w-9 h-9 rounded-xl border border-slate-300 dark:border-slate-700 flex items-center justify-center hover:border-red-500 hover:text-red-500 transition"
+                    title="Delete post"
+                  >
+                    <Trash2 size={17} />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="flex gap-6 text-slate-600 dark:text-slate-300">
+        <div className="flex items-center gap-6 text-slate-600 dark:text-slate-300 pt-4 border-t border-slate-100 dark:border-slate-800">
           <button
             type="button"
             onClick={toggleLikeHandler}
             className="flex items-center gap-2 hover:text-red-500 transition"
-            title={liked ? "Unlike post" : "Like post"}
           >
             <Heart
               size={20}
-              className={
-                liked
-                  ? "text-red-500 fill-red-500"
-                  : "text-slate-500 dark:text-slate-300"
-              }
+              className={liked ? "text-red-500 fill-red-500" : "text-slate-500 dark:text-slate-300"}
             />
             <span>{likesCount}</span>
           </button>
 
           <button
             type="button"
-            onClick={openComments}
+            onClick={openDetailsModal}
             className="flex items-center gap-2 hover:text-red-500 transition"
-            title="View comments"
           >
             <MessageCircle size={20} />
             <span>{comments.length}</span>
@@ -308,11 +297,9 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
       {/* Edit Post Modal */}
       {isEditPostOpen && canManagePost && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center px-6 z-50">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 w-full max-w-lg max-h-96 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 w-full max-w-lg">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-3xl font-bold text-slate-950 dark:text-white">
-                Edit Post
-              </h2>
+              <h2 className="text-3xl font-bold text-slate-950 dark:text-white">Edit Post</h2>
               <button
                 type="button"
                 onClick={() => setIsEditPostOpen(false)}
@@ -341,15 +328,8 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
               />
 
               <div className="flex gap-4">
-                <Button type="submit" className="flex-1">
-                  Save
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setIsEditPostOpen(false)}
-                >
+                <Button type="submit" className="flex-1">Save</Button>
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setIsEditPostOpen(false)}>
                   Cancel
                 </Button>
               </div>
@@ -358,109 +338,148 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
         </div>
       )}
 
-      {/* Comments Modal */}
-      {isCommentsOpen && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center px-6 z-50">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 w-full max-w-2xl max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between mb-6">
+      {/* Full Post Details & Comments Modal */}
+      {isDetailsOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center px-4 sm:px-6 z-50">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+            
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div>
-                <h2 className="text-3xl font-bold text-slate-950 dark:text-white">
-                  Comments
-                </h2>
-                <p className="text-slate-600 dark:text-slate-400 mt-2 line-clamp-1">
+                <span className="text-red-500 dark:text-red-400 font-semibold text-sm">
+                  {typeof post.sport === "object" ? post.sport?.name : post.sport}
+                </span>
+                <h2 className="text-2xl font-bold text-slate-950 dark:text-white mt-1">
                   {post.title}
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Posted by {post.author?.name || "User"}
                 </p>
               </div>
+
               <button
                 type="button"
-                onClick={() => setIsCommentsOpen(false)}
+                onClick={() => setIsDetailsOpen(false)}
                 className="w-10 h-10 rounded-xl border border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-white hover:border-red-500 transition flex-shrink-0"
               >
                 <X size={20} />
               </button>
             </div>
 
-            {currentUserId && (
-              <form
-                onSubmit={addComment}
-                className="flex flex-col gap-3 mb-6 pb-6 border-b border-slate-200 dark:border-slate-800"
-              >
-                <Input
-                  placeholder="Write a comment..."
-                  value={commentText}
-                  onChange={(event) => setCommentText(event.target.value)}
-                />
-                <Button type="submit" className="w-full">
-                  Post Comment
-                </Button>
-              </form>
-            )}
+            {/* Modal Body / Full Content & Comments */}
+            <div className="flex-1 overflow-y-auto py-4 space-y-6">
+              {/* Full Post Body */}
+              <div className="text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+                {post.body}
+              </div>
 
-            <div className="flex-1 overflow-y-auto space-y-4">
-              {isLoadingComments ? (
-                <p className="text-slate-600 dark:text-slate-400 text-center py-8">
-                  Loading comments...
-                </p>
-              ) : comments.length === 0 ? (
-                <p className="text-slate-600 dark:text-slate-400 text-center py-8">
-                  No comments yet. Be the first to comment!
-                </p>
+              {/* Likes & Comments Counter info */}
+              <div className="flex items-center gap-6 text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800 pb-4">
+                <button
+                  type="button"
+                  onClick={toggleLikeHandler}
+                  className="flex items-center gap-2 hover:text-red-500 transition"
+                >
+                  <Heart
+                    size={20}
+                    className={liked ? "text-red-500 fill-red-500" : "text-slate-500 dark:text-slate-300"}
+                  />
+                  <span>{likesCount} Likes</span>
+                </button>
+                <div className="flex items-center gap-2">
+                  <MessageCircle size={20} />
+                  <span>{comments.length} Comments</span>
+                </div>
+              </div>
+
+              {/* Add Comment Form */}
+              {currentUserId ? (
+                <form onSubmit={addComment} className="flex flex-col gap-3">
+                  <Input
+                    placeholder="Write a comment..."
+                    value={commentText}
+                    onChange={(event) => setCommentText(event.target.value)}
+                  />
+                  <Button type="submit" className="w-full">
+                    Post Comment
+                  </Button>
+                </form>
               ) : (
-                comments.map((comment) => {
-                  const commentId = comment._id || comment.id;
-                  const commentOwnerId =
-                    comment.author?._id ||
-                    comment.author?.id ||
-                    comment.userId ||
-                    comment.authorId;
-
-                  const canManageComment =
-                    currentUserId &&
-                    commentOwnerId &&
-                    String(commentOwnerId) === String(currentUserId);
-
-                  return (
-                    <div
-                      key={commentId}
-                      className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-red-500 dark:text-red-400 mb-2">
-                            {comment.author?.name || "User"}
-                          </h3>
-                          <p className="text-slate-700 dark:text-slate-300">
-                            {comment.body}
-                          </p>
-                        </div>
-
-                        {canManageComment && (
-                          <div className="flex gap-2 flex-shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => editComment(commentId)}
-                              className="w-8 h-8 rounded-lg border border-slate-300 dark:border-slate-700 flex items-center justify-center hover:border-red-500 hover:text-red-500 transition"
-                              title="Edit comment"
-                            >
-                              <Pencil size={15} />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => deleteCommentHandler(commentId)}
-                              className="w-8 h-8 rounded-lg border border-slate-300 dark:border-slate-700 flex items-center justify-center hover:border-red-500 hover:text-red-500 transition"
-                              title="Delete comment"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
+                <p className="text-sm text-slate-500 text-center py-2">
+                  Please log in to leave a comment.
+                </p>
               )}
+
+              {/* Comments List */}
+              <div className="space-y-4 pt-2">
+                <h3 className="font-bold text-lg text-slate-950 dark:text-white">Discussion</h3>
+                
+                {isLoadingComments ? (
+                  <p className="text-slate-600 dark:text-slate-400 text-center py-6">
+                    Loading comments...
+                  </p>
+                ) : comments.length === 0 ? (
+                  <p className="text-slate-600 dark:text-slate-400 text-center py-6">
+                    No comments yet. Be the first to comment!
+                  </p>
+                ) : (
+                  comments.map((comment) => {
+                    const commentId = comment._id || comment.id;
+                    const commentOwnerId =
+                      comment.author?._id ||
+                      comment.author?.id ||
+                      comment.userId ||
+                      comment.authorId;
+
+                    const canManageComment =
+                      currentUserId &&
+                      commentOwnerId &&
+                      String(commentOwnerId) === String(currentUserId);
+
+                    return (
+                      <div
+                        key={commentId}
+                        className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <h4 className="font-bold text-red-500 dark:text-red-400 mb-1 text-sm">
+                              {comment.author?.name || "User"}
+                            </h4>
+                            <p className="text-slate-700 dark:text-slate-300 text-sm">
+                              {comment.body}
+                            </p>
+                          </div>
+
+                          {canManageComment && (
+                            <div className="flex gap-2 flex-shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => editComment(commentId)}
+                                className="w-8 h-8 rounded-lg border border-slate-300 dark:border-slate-700 flex items-center justify-center hover:border-red-500 hover:text-red-500 transition"
+                                title="Edit comment"
+                              >
+                                <Pencil size={15} />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => deleteCommentHandler(commentId)}
+                                className="w-8 h-8 rounded-lg border border-slate-300 dark:border-slate-700 flex items-center justify-center hover:border-red-500 hover:text-red-500 transition"
+                                title="Delete comment"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
+
           </div>
         </div>
       )}
