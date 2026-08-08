@@ -37,7 +37,7 @@ function App() {
       <Route element={<MainLayout />}>
         <Route path="/" element={<Home />} />
         <Route path="/sports" element={<Sports />} />
-        <Route path="/sports/:slug" element={<SportDetails />} />
+        <Route path="/sports/:id" element={<SportDetails />} />
         <Route path="/forum" element={<Forum />} />
 
         {/* لوحة تحكم المسؤول (Admin) */}
