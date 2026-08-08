@@ -9,19 +9,17 @@ import CreatePostForm from "../features/forum/components/CreatePostForm";
 
 import { useAuth } from "../context/AuthContext";
 
-import {
-  forumPosts,
-  forumCategories,
-} from "../features/forum/data/forumData";
+import { forumCategories } from "../features/forum/data/forumData";
 
+// استدعاء الخدمات من الملف الموحد الذي أنشأناه
 import {
   getForumPosts,
+  getPostsBySport,
   createForumPost,
   updateForumPost,
   deleteForumPost,
+  
 } from "../services/forumService";
-
-import { createNotification } from "../services/notificationService";
 
 function Forum() {
   const { user, isCoach, isAdmin } = useAuth();
@@ -29,35 +27,48 @@ function Forum() {
 
   const selectedPostId = new URLSearchParams(location.search).get("post");
 
-  const canCreatePost = isCoach || isAdmin;
+  // الصلاحية: المدربين أو الآدمن
+  const canCreatePost = isCoach || isAdmin || user?.role === "publisher";
 
   const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
 
-  const loadPosts = async () => {
+  // جلب المنشورات من الباك إند
+  const loadPosts = async (category = activeCategory) => {
+    setLoading(true);
     try {
-      const data = await getForumPosts();
-      setPosts(data?.length > 0 ? data : forumPosts);
+      let res;
+      if (category === "All") {
+        res = await getForumPosts();
+      } else {
+        // إذا كان الفلتر بحسب الرياضة
+        res = await getPostsBySport(category);
+      }
+
+      // الباك إند يرجع البيانات داخل res.data.posts أو res.data مباشرة
+      const fetchedPosts = res?.data?.posts || res?.data || [];
+      setPosts(fetchedPosts);
     } catch (error) {
-      console.error(error);
-      setPosts(forumPosts);
+      console.error("Error loading posts:", error);
+      setPosts([]);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadPosts();
-  }, []);
+    loadPosts(activeCategory);
+  }, [activeCategory]);
 
+  // التمرير التلقائي للبوست المحدد عبر URL Query
   useEffect(() => {
     if (!selectedPostId) return;
 
     setActiveCategory("All");
 
-    setTimeout(() => {
-      const postElement = document.getElementById(
-        `post-${selectedPostId}`
-      );
-
+    const timer = setTimeout(() => {
+      const postElement = document.getElementById(`post-${selectedPostId}`);
       if (postElement) {
         postElement.scrollIntoView({
           behavior: "smooth",
@@ -65,65 +76,42 @@ function Forum() {
         });
       }
     }, 300);
+
+    return () => clearTimeout(timer);
   }, [selectedPostId]);
 
+  // إنشاء منشور جديد
   const createPost = async (postData) => {
     if (!canCreatePost) return;
 
-    const newPostData = {
-      ...postData,
-      author: user?.name || "User",
-      authorAvatar: user?.avatar || "",
-      authorId: user?.id || user?.email || null,
-      authorRole: user?.role || "athlete",
-    };
-
     try {
-      const createdPost = await createForumPost(newPostData);
-
-      await loadPosts();
-
-      await createNotification({
-        type: "post",
-        title: "New Forum Post",
-        message: `${user?.name || "Someone"} created a new ${
-          createdPost?.sport || newPostData.sport
-        } post.`,
-        userId: user?.id || user?.email,
-        postId: createdPost?.id,
-        link: `/forum?post=${createdPost?.id}`,
-      });
+      // الباك إند يأخذ الـ author تلقائياً من الـ Token
+      await createForumPost(postData);
+      await loadPosts(); // إعادة تحميل المنشورات
     } catch (error) {
-      console.error(error);
+      console.error("Failed to create post:", error);
     }
   };
 
+  // حذف منشور
   const deletePost = async (postId) => {
     try {
       await deleteForumPost(postId);
       await loadPosts();
     } catch (error) {
-      console.error(error);
+      console.error("Failed to delete post:", error);
     }
   };
 
-  const updatePost = async (updatedPost) => {
+  // تعديل منشور
+  const updatePost = async (postId, updatedData) => {
     try {
-      await updateForumPost(
-        updatedPost.id,
-        updatedPost
-      );
-
+      await updateForumPost(postId, updatedData);
       await loadPosts();
     } catch (error) {
-      console.error(error);
+      console.error("Failed to update post:", error);
     }
   };
-
-  const filteredPosts =
-    activeCategory === "All"
-      ? posts
-      : posts.filter((post) => post.sport === activeCategory);
 
   return (
     <main className="py-16">
@@ -136,6 +124,7 @@ function Forum() {
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Aside Filter Categories */}
           <aside className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 h-fit">
             <h2 className="text-2xl font-bold mb-5 text-slate-950 dark:text-white">
               Categories
@@ -159,6 +148,7 @@ function Forum() {
             </div>
           </aside>
 
+          {/* Main Posts Area */}
           <div className="lg:col-span-3">
             {canCreatePost ? (
               <CreatePostForm onCreatePost={createPost} />
@@ -172,28 +162,35 @@ function Forum() {
             )}
 
             <div className="space-y-5">
-              {filteredPosts.length === 0 ? (
+              {loading ? (
+                <div className="text-center py-10 text-slate-500">
+                  Loading posts...
+                </div>
+              ) : posts.length === 0 ? (
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center text-slate-600 dark:text-slate-400">
                   No posts found in this category.
                 </div>
               ) : (
-                filteredPosts.map((post) => (
-                  <div
-                    key={post.id}
-                    id={`post-${post.id}`}
-                    className={
-                      String(post.id) === String(selectedPostId)
-                        ? "rounded-3xl ring-4 ring-red-500/40 transition"
-                        : ""
-                    }
-                  >
-                    <ForumPostCard
-                      post={post}
-                      onDeletePost={deletePost}
-                      onUpdatePost={updatePost}
-                    />
-                  </div>
-                ))
+                posts.map((post) => {
+                  const postId = post._id || post.id;
+                  return (
+                    <div
+                      key={postId}
+                      id={`post-${postId}`}
+                      className={
+                        String(postId) === String(selectedPostId)
+                          ? "rounded-3xl ring-4 ring-red-500/40 transition"
+                          : ""
+                      }
+                    >
+                      <ForumPostCard
+                        post={post}
+                        onDeletePost={deletePost}
+                        onUpdatePost={updatePost}
+                      />
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>

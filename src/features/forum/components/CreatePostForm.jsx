@@ -1,5 +1,4 @@
 import { useState } from "react";
-
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
 
@@ -12,17 +11,15 @@ function CreatePostForm({ onCreatePost }) {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [name]: value,
-    });
+    }));
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
-
-    if (formData.title.trim() === "") return;
+    if (!formData.title.trim()) return;
 
     onCreatePost(formData);
 
@@ -36,7 +33,7 @@ function CreatePostForm({ onCreatePost }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 mb-8 space-y-4"
+      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 mb-8 space-y-4 shadow-sm"
     >
       <h2 className="text-2xl font-bold text-slate-950 dark:text-white">
         Create New Post
@@ -56,11 +53,11 @@ function CreatePostForm({ onCreatePost }) {
           onChange={handleChange}
           className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-slate-900 dark:text-white"
         >
-          <option>Fitness</option>
-          <option>Boxing</option>
-          <option>Bodybuilding</option>
-          <option>Karate</option>
-          <option>Taekwondo</option>
+          <option value="Fitness">Fitness</option>
+          <option value="Boxing">Boxing</option>
+          <option value="Bodybuilding">Bodybuilding</option>
+          <option value="Karate">Karate</option>
+          <option value="Taekwondo">Taekwondo</option>
         </select>
 
         <select
@@ -69,14 +66,14 @@ function CreatePostForm({ onCreatePost }) {
           onChange={handleChange}
           className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-slate-900 dark:text-white"
         >
-          <option>Discussion</option>
-          <option>Question</option>
-          <option>Training</option>
-          <option>Progress</option>
+          <option value="Discussion">Discussion</option>
+          <option value="Question">Question</option>
+          <option value="Training">Training</option>
+          <option value="Progress">Progress</option>
         </select>
       </div>
 
-      <Button type="submit">
+      <Button type="submit" className="w-full md:w-auto">
         Publish Post
       </Button>
     </form>

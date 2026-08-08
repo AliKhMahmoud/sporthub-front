@@ -26,7 +26,8 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
   const { user: currentUser } = useAuth();
 
   const currentUserId = currentUser?.id || currentUser?.email;
-  const postOwnerId = post.authorId || post.authorEmail;
+  const postId = post._id || post.id;
+  const postOwnerId = post.author?._id || post.authorId || post.authorEmail;
 
   const [liked, setLiked] = useState(
     post.likedByMe || post.isLiked || false
@@ -46,7 +47,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
 
   const [editPostData, setEditPostData] = useState({
     title: post.title || "",
-    sport: post.sport || "Fitness",
+    sport: post.sport?.name || post.sport || "Fitness",
     tag: post.tag || "Discussion",
   });
 
@@ -63,8 +64,8 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
 
   const loadComments = async () => {
     try {
-      const data = await getPostComments(post.id);
-      setComments(data || []);
+      const data = await getPostComments(postId);
+      setComments(data?.data || data || []);
     } catch (error) {
       console.error(error);
     }
@@ -74,17 +75,19 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
     setIsCommentsOpen(true);
     await loadComments();
   };
+
   const toggleLikeHandler = async () => {
     if (!currentUserId) return;
 
     try {
-      const result = await togglePostLike(post.id);
+      const result = await togglePostLike(postId);
+      const resData = result?.data || result;
 
-      setLiked(result?.liked || false);
-      setLikesCount(result?.likesCount || 0);
+      setLiked(resData?.liked || false);
+      setLikesCount(resData?.likesCount || 0);
 
       if (
-        result?.liked &&
+        resData?.liked &&
         postOwnerId &&
         String(postOwnerId) !== String(currentUserId)
       ) {
@@ -94,7 +97,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
           message: `${currentUser?.name || "Someone"} liked your post: ${post.title}`,
           userId: postOwnerId,
           senderId: currentUserId,
-          postId: post.id,
+          postId: postId,
         });
       }
     } catch (error) {
@@ -109,18 +112,12 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
     if (commentText.trim() === "") return;
 
     try {
-      const createdComment = await createPostComment(
-        post.id,
-        {
-          text: commentText,
-        }
-      );
+      const response = await createPostComment(postId, {
+        text: commentText,
+      });
+      const createdComment = response?.data || response;
 
-      setComments((prev) => [
-        createdComment,
-        ...prev,
-      ]);
-
+      setComments((prev) => [createdComment, ...prev]);
       setCommentText("");
 
       if (
@@ -133,7 +130,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
           message: `${currentUser?.name || "Someone"} commented on your post: ${post.title}`,
           userId: postOwnerId,
           senderId: currentUserId,
-          postId: post.id,
+          postId: postId,
         });
       }
     } catch (error) {
@@ -143,15 +140,12 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
 
   const deleteCommentHandler = async (commentId) => {
     try {
-      await deletePostComment(
-        post.id,
-        commentId
-      );
+      await deletePostComment(postId, commentId);
 
       setComments((prev) =>
         prev.filter(
           (comment) =>
-            String(comment.id) !== String(commentId)
+            String(comment._id || comment.id) !== String(commentId)
         )
       );
     } catch (error) {
@@ -162,7 +156,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
   const editComment = async (commentId) => {
     const currentComment = comments.find(
       (comment) =>
-        String(comment.id) === String(commentId)
+        String(comment._id || comment.id) === String(commentId)
     );
 
     const newText = window.prompt(
@@ -173,17 +167,14 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
     if (!newText || newText.trim() === "") return;
 
     try {
-      const updatedComment = await updatePostComment(
-        post.id,
-        commentId,
-        {
-          text: newText,
-        }
-      );
+      const response = await updatePostComment(postId, commentId, {
+        text: newText,
+      });
+      const updatedComment = response?.data || response;
 
       setComments((prev) =>
         prev.map((comment) =>
-          String(comment.id) === String(commentId)
+          String(comment._id || comment.id) === String(commentId)
             ? updatedComment
             : comment
         )
@@ -195,7 +186,6 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
 
   const handlePostEditChange = (event) => {
     const { name, value } = event.target;
-
     setEditPostData({
       ...editPostData,
       [name]: value,
@@ -208,94 +198,95 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
     if (!canManagePost) return;
     if (editPostData.title.trim() === "") return;
 
-    onUpdatePost({
+    onUpdatePost(postId, {
       ...post,
       ...editPostData,
     });
 
     setIsEditPostOpen(false);
   };
-  return(
-  <>
-  <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-red-500 transition">
-    <div className="flex justify-between items-start gap-4 mb-3">
-      <div>
-        <span className="text-red-500 dark:text-red-400 font-semibold">
-          {post.sport}
-        </span>
 
-        <h2 className="text-2xl font-bold mt-3 mb-3 text-slate-950 dark:text-white">
-          {post.title}
-        </h2>
+  return (
+    <>
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-red-500 transition">
+        <div className="flex justify-between items-start gap-4 mb-3">
+          <div>
+            <span className="text-red-500 dark:text-red-400 font-semibold">
+              {typeof post.sport === "object" ? post.sport?.name : post.sport}
+            </span>
 
-        <p className="text-slate-600 dark:text-slate-400 mb-5">
-          Posted by {post.author}
-        </p>
-      </div>
+            <h2 className="text-2xl font-bold mt-3 mb-3 text-slate-950 dark:text-white">
+              {post.title}
+            </h2>
 
-      <div className="flex items-center gap-3">
-        <span className="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 px-3 py-1 rounded-full text-sm">
-          {post.tag}
-        </span>
-
-        {canManagePost && (
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setIsEditPostOpen(true)}
-              className="w-9 h-9 rounded-xl border border-slate-300 dark:border-slate-700 flex items-center justify-center hover:border-red-500 transition"
-            >
-              <Pencil size={17} />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onDeletePost(post.id)}
-              className="w-9 h-9 rounded-xl border border-slate-300 dark:border-slate-700 flex items-center justify-center hover:border-red-500 hover:text-red-500 transition"
-            >
-              <Trash2 size={17} />
-            </button>
+            <p className="text-slate-600 dark:text-slate-400 mb-5">
+              Posted by {post.author?.name || post.author || "User"}
+            </p>
           </div>
-        )}
+
+          <div className="flex items-center gap-3">
+            <span className="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 px-3 py-1 rounded-full text-sm">
+              {post.tag}
+            </span>
+
+            {canManagePost && (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditPostOpen(true)}
+                  className="w-9 h-9 rounded-xl border border-slate-300 dark:border-slate-700 flex items-center justify-center hover:border-red-500 transition"
+                >
+                  <Pencil size={17} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onDeletePost(postId)}
+                  className="w-9 h-9 rounded-xl border border-slate-300 dark:border-slate-700 flex items-center justify-center hover:border-red-500 hover:text-red-500 transition"
+                >
+                  <Trash2 size={17} />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex gap-6 text-slate-600 dark:text-slate-300">
+          <button
+            type="button"
+            onClick={toggleLikeHandler}
+            className="flex items-center gap-2 hover:text-red-500 transition"
+          >
+            <Heart
+              size={20}
+              className={
+                liked
+                  ? "text-red-500 fill-red-500"
+                  : "text-slate-500 dark:text-slate-300"
+              }
+            />
+            <span>{likesCount}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={openComments}
+            className="flex items-center gap-2 hover:text-red-500 transition"
+          >
+            <MessageCircle size={20} />
+            <span>{comments.length}</span>
+          </button>
+        </div>
       </div>
-    </div>
 
-    <div className="flex gap-6 text-slate-600 dark:text-slate-300">
-      <button
-        type="button"
-        onClick={toggleLikeHandler}
-        className="flex items-center gap-2 hover:text-red-500 transition"
-      >
-        <Heart
-          size={20}
-          className={
-            liked
-              ? "text-red-500 fill-red-500"
-              : "text-slate-500 dark:text-slate-300"
-          }
-        />
-
-        <span>{likesCount}</span>
-      </button>
-
-      <button
-        type="button"
-        onClick={openComments}
-        className="flex items-center gap-2 hover:text-red-500 transition"
-      >
-        <MessageCircle size={20} />
-        <span>{comments.length}</span>
-      </button>
-    </div>
-  </div>
-  {isEditPostOpen && canManagePost && (
+      {/* Edit Post Modal */}
+      {isEditPostOpen && canManagePost && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center px-6 z-50">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 w-full max-w-lg">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-3xl font-bold text-slate-950 dark:text-white">
                 Edit Post
               </h2>
-
               <button
                 type="button"
                 onClick={() => setIsEditPostOpen(false)}
@@ -342,7 +333,6 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
                 <Button type="submit" className="flex-1">
                   Save
                 </Button>
-
                 <Button
                   type="button"
                   variant="outline"
@@ -356,6 +346,8 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
           </div>
         </div>
       )}
+
+      {/* Comments Modal */}
       {isCommentsOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center px-6 z-50">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 w-full max-w-2xl">
@@ -364,12 +356,10 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
                 <h2 className="text-3xl font-bold text-slate-950 dark:text-white">
                   Comments
                 </h2>
-
                 <p className="text-slate-600 dark:text-slate-400 mt-2">
                   {post.title}
                 </p>
               </div>
-
               <button
                 type="button"
                 onClick={() => setIsCommentsOpen(false)}
@@ -386,14 +376,9 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
               <Input
                 placeholder="Write a comment..."
                 value={commentText}
-                onChange={(event) =>
-                  setCommentText(event.target.value)
-                }
+                onChange={(event) => setCommentText(event.target.value)}
               />
-
-              <Button type="submit">
-                Comment
-              </Button>
+              <Button type="submit">Comment</Button>
             </form>
 
             <div className="max-h-80 overflow-y-auto space-y-4">
@@ -402,12 +387,14 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
                   No comments yet.
                 </p>
               ) : (
-                comments.map((comment) => {
+                comments.messages || comments.map((comment) => {
+                  const commentId = comment._id || comment.id;
                   const commentOwnerId =
                     comment.userId ||
                     comment.authorId ||
+                    comment.user?._id ||
                     comment.user?.id ||
-                    comment.author?.id;
+                    comment.author?._id;
 
                   const canManageComment =
                     currentUserId &&
@@ -416,18 +403,17 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
 
                   return (
                     <div
-                      key={comment.id}
+                      key={commentId}
                       className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <h3 className="font-bold text-red-500 dark:text-red-400 mb-2">
-                            {comment.user ||
+                            {comment.user?.name ||
                               comment.authorName ||
-                              comment.user?.name ||
+                              comment.author?.name ||
                               "User"}
                           </h3>
-
                           <p className="text-slate-700 dark:text-slate-300">
                             {comment.text}
                           </p>
@@ -435,21 +421,19 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
 
                         {canManageComment && (
                           <div className="flex gap-2">
-                            <button
-  type="button"
-  onClick={() =>
-    deleteCommentHandler(comment.id)
-  }
-  className="w-8 h-8 rounded-lg border border-slate-300 dark:border-slate-700 flex items-center justify-center hover:border-red-500 hover:text-red-500 transition"
->
-  <Trash2 size={15} />
-</button>
-
+                            {/* زر التعديل */}
                             <button
                               type="button"
-                              onClick={() =>
-                                deleteCommentHandler(comment.id)
-                                }
+                              onClick={() => editComment(commentId)}
+                              className="w-8 h-8 rounded-lg border border-slate-300 dark:border-slate-700 flex items-center justify-center hover:border-red-500 hover:text-red-500 transition"
+                            >
+                              <Pencil size={15} />
+                            </button>
+
+                            {/* زر الحذف */}
+                            <button
+                              type="button"
+                              onClick={() => deleteCommentHandler(commentId)}
                               className="w-8 h-8 rounded-lg border border-slate-300 dark:border-slate-700 flex items-center justify-center hover:border-red-500 hover:text-red-500 transition"
                             >
                               <Trash2 size={15} />
