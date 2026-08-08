@@ -6,12 +6,12 @@ import Container from "../components/ui/Container";
 import Button from "../components/ui/Button";
 import { useAuth } from "../context/AuthContext";
 
-import { getSportById } from "../services/sportService";
 import {
   getTrainingProgressBySport,
   startWorkout,
   requestProgressReview,
 } from "../services/trainingProgressService";
+import { getSportById } from "../services/sportsService";
 
 const trainingPlans = [
   {
