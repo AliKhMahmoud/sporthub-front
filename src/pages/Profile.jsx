@@ -1,16 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  Award,
   Camera,
-  CheckCircle,
-  Flame,
-  Heart,
-  Medal,
-  MessageCircle,
-  ShieldCheck,
-  Star,
-  Trophy,
-  Users,
   Zap,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -19,7 +9,7 @@ import {
   getProfile,
   updateProfile,
 } from "../services/profileService";
-
+import { getMyStats, getMyProgress } from "../services/progressService";
 
 import { useAuth } from "../context/AuthContext";
 import Button from "../components/ui/Button";
@@ -45,6 +35,10 @@ function Profile() {
   const [accountActivity, setAccountActivity] = useState([]);
   const [aiPlans, setAiPlans] = useState([]);
   const [normalWorkouts, setNormalWorkouts] = useState([]);
+  
+  // حالات جديدة خاصة بالـ Progress والإحصائيات الحقيقية
+  const [progressStats, setProgressStats] = useState([]);
+  const [progressHistory, setProgressHistory] = useState([]);
 
   const [profileStats, setProfileStats] = useState({
     forumPosts: 0,
@@ -56,7 +50,6 @@ function Profile() {
     coachRating: 0,
   });
 
-  // الحقول النصية للنموذج
   const [formData, setFormData] = useState({
     name: user?.name || "",
     about: user?.bio || user?.about || "",
@@ -66,11 +59,9 @@ function Profile() {
     coachSport: user?.coachSport || "Fitness",
   });
 
-  // حقول الملفات الفعلية المرفوعة من الجهاز
   const [avatarFile, setAvatarFile] = useState(null);
   const [coverFile, setCoverFile] = useState(null);
 
-  // معاينة الصور بصرياً أثناء التعديل
   const [avatarPreview, setAvatarPreview] = useState(
     user?.avatar || "https://i.pravatar.cc/150"
   );
@@ -80,7 +71,7 @@ function Profile() {
   );
 
   useEffect(() => {
-    const loadProfile = async () => {
+    const loadProfileData = async () => {
       try {
         const data = await getProfile();
         const profileUser = data?.user || user;
@@ -104,13 +95,26 @@ function Profile() {
         setAiPlans(data?.aiPlans || []);
         setNormalWorkouts(data?.workouts || []);
         setProfileStats(data?.stats || {});
+
+        // جلب الإحصائيات الحقيقية والـ Progress من الـ Backend
+        if (isAthlete) {
+          const statsRes = await getMyStats();
+          if (statsRes?.success) {
+            setProgressStats(statsRes.data || []);
+          }
+
+          const progressRes = await getMyProgress();
+          if (progressRes?.success) {
+            setProgressHistory(progressRes.data || []);
+          }
+        }
       } catch (error) {
-        console.error(error);
+        console.error("Error loading profile details:", error);
       }
     };
 
-    loadProfile();
-  }, [user]);
+    loadProfileData();
+  }, [user, isAthlete]);
 
   const userPosts = profilePosts;
   const receivedLikes = profileStats.likesReceived || 0;
@@ -118,67 +122,20 @@ function Profile() {
 
   const trainingSports = [
     ...new Set(
-      normalWorkouts
-        .map((workout) => workout.sport)
+      progressHistory
+        .map((item) => item.sport?.name)
         .filter(Boolean)
     ),
   ];
 
-  const totalAiPlans = aiPlans.length;
-  const totalNormalPlans = normalWorkouts.length;
-  const totalPlans = totalAiPlans + totalNormalPlans;
+  const totalPlans = aiPlans.length + normalWorkouts.length;
+  const completedPlans = aiPlans.length; // يمكن تعديلها حسب الحاجة الفعلية للـ Plans
 
-  const completedAiPlans = aiPlans.filter((plan) => {
-    const totalDays = plan.plan?.days?.length || 0;
-    const completedDays = plan.completedDays || [];
-    return totalDays > 0 && completedDays.length === totalDays;
-  }).length;
-
-  const completedNormalPlans = normalWorkouts.filter(
-    (workout) => {
-      const exercises = workout.exercises || [];
-      const completed = workout.completedExercises || [];
-      return exercises.length > 0 && completed.length === exercises.length;
-    }
-  ).length;
-
-  const completedPlans = completedAiPlans + completedNormalPlans;
-
-  const aiProgress = aiPlans.reduce((sum, plan) => {
-    const totalDays = plan.plan?.days?.length || 0;
-    const completedDays = plan.completedDays || [];
-    if (totalDays === 0) return sum;
-    return sum + Math.round((completedDays.length / totalDays) * 100);
-  }, 0);
-
-  const normalProgress = normalWorkouts.reduce(
-    (sum, workout) => {
-      const exercises = workout.exercises || [];
-      const completed = workout.completedExercises || [];
-      if (exercises.length === 0) return sum;
-      return sum + Math.round((completed.length / exercises.length) * 100);
-    },
-    0
-  );
-
-  const averageProgress =
-    profileStats.averageProgress ||
-    (totalPlans > 0 ? Math.round((aiProgress + normalProgress) / totalPlans) : 0);
-
-  const ratedPlans = aiPlans.filter(
-    (plan) => Number(plan.coachRating) > 0
-  );
-
-  const totalComments = aiPlans.reduce(
-    (sum, plan) => sum + (plan.comments?.length || 0),
-    0
-  );
+  const averageProgress = profileStats.averageProgress || 0;
 
   const xp =
     totalPlans * 20 +
     completedPlans * 50 +
-    totalComments * 5 +
-    ratedPlans.length * 10 +
     receivedLikes * 2 +
     receivedComments * 3;
 
@@ -197,43 +154,6 @@ function Profile() {
       ? "Active Athlete"
       : "Rookie";
 
-  const trainingDates = normalWorkouts
-    .map((workout) =>
-      workout.startedAt ? new Date(workout.startedAt).toDateString() : null
-    )
-    .filter(Boolean);
-
-  const uniqueTrainingDates = [...new Set(trainingDates)];
-  const currentStreak = uniqueTrainingDates.length > 0 ? uniqueTrainingDates.length : 0;
-
-  const badges = [
-    { icon: <Award size={22} />, title: "First Workout", unlocked: totalPlans >= 1 },
-    { icon: <Flame size={22} />, title: "Progress Maker", unlocked: averageProgress >= 50 },
-    { icon: <Trophy size={22} />, title: "Plan Finisher", unlocked: completedPlans >= 1 },
-    { icon: <ShieldCheck size={22} />, title: "Consistent Athlete", unlocked: currentStreak >= 3 },
-    { icon: <Star size={22} />, title: "Coach Reviewer", unlocked: ratedPlans.length >= 1 },
-  ];
-
-  const achievements = [
-    { icon: <Trophy size={22} />, title: "Training Plans", description: `Created ${totalPlans} total training plans.` },
-    { icon: <Flame size={22} />, title: "Training Progress", description: `Average progress is ${averageProgress}%.` },
-    { icon: <Medal size={22} />, title: "Completed Plans", description: `Completed ${completedPlans} training plans.` },
-    { icon: <CheckCircle size={22} />, title: "Forum Activity", description: `${userPosts.length} posts, ${receivedComments} comments received.` },
-  ];
-
-  const recentTrainingHistory = normalWorkouts.slice(0, 5).map((workout) => {
-    const totalExercises = workout.exercises?.length || 0;
-    const completedExercises = workout.completedExercises?.length || 0;
-    const progress = totalExercises > 0 ? Math.round((completedExercises / totalExercises) * 100) : 0;
-    return {
-      id: workout.id,
-      sport: workout.sport,
-      title: workout.title,
-      level: workout.level,
-      progress,
-    };
-  });
-
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData({
@@ -242,7 +162,6 @@ function Profile() {
     });
   };
 
-  // معالجة اختيار الملفات من الجهاز سواء من الواجهة الرئيسية أو من نافذة الـ Modal
   const handleFileChange = (event, type) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -280,29 +199,16 @@ function Profile() {
       if (coverFile) {
         dataToSend.append("cover", coverFile);
       }
-
-      console.log("🚀 Sending profile update...");
       
       const result = await updateProfile(dataToSend);
-      
-      console.log("✅ Full response:", result);
-      console.log("Data structure:", result.data);
-      console.log("Avatar:", result?.data?.avatar);
-      console.log("Cover:", result?.data?.cover);
-
       const updatedUser = result.data || result.user || result;
       
       login(updatedUser);
       setIsEditOpen(false);
-      console.log("✅ Profile saved successfully");
     } catch (error) {
-      console.error("❌ Error saving profile:", error);
-      console.error("Error response:", error.response?.data);
+      console.error("Error saving profile:", error);
     }
   };
-
-  
-
 
   return (
     <main className="max-w-7xl mx-auto px-6 py-12">
@@ -398,7 +304,6 @@ function Profile() {
             </Button>
           </div>
 
-          {/* باقي تفاصيل الواجهة حسب الـ Role */}
           {isAthlete && (
             <>
               <div className="mt-10 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-6">
@@ -425,22 +330,45 @@ function Profile() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mt-6">
-                <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl">
-                  <p className="text-slate-500 dark:text-slate-400">Training Plans</p>
-                  <h3 className="text-3xl font-bold text-slate-950 dark:text-white">{totalPlans}</h3>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl">
-                  <p className="text-slate-500 dark:text-slate-400">Completed Plans</p>
-                  <h3 className="text-3xl font-bold text-slate-950 dark:text-white">{completedPlans}</h3>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl">
-                  <p className="text-slate-500 dark:text-slate-400">Comments</p>
-                  <h3 className="text-3xl font-bold text-slate-950 dark:text-white">{totalComments}</h3>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl">
-                  <p className="text-slate-500 dark:text-slate-400">Progress</p>
-                  <h3 className="text-3xl font-bold text-slate-950 dark:text-white">{averageProgress}%</h3>
+              {/* قسم عرض الإحصائيات الفعلية المسترجعة من الـ Progress API */}
+              <div className="mt-6">
+                <h3 className="text-xl font-bold text-slate-950 dark:text-white mb-4">
+                  Performance Metrics & Stats
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  {progressStats.length > 0 ? (
+                    progressStats.map((stat) => (
+                      <div
+                        key={stat._id}
+                        className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl"
+                      >
+                        <p className="text-slate-500 dark:text-slate-400 uppercase text-xs font-bold tracking-wider">
+                          Metric: {stat._id}
+                        </p>
+                        <div className="mt-2 flex items-baseline justify-between">
+                          <div>
+                            <span className="text-xs text-slate-400">Latest: </span>
+                            <span className="text-xl font-bold text-slate-950 dark:text-white">
+                              {stat.latest}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-xs text-slate-400">Best: </span>
+                            <span className="text-xl font-bold text-emerald-500">
+                              {stat.best}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mt-2 text-xs text-slate-500">
+                          Total records tracked: {stat.count}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-slate-500 dark:text-slate-400 col-span-3 text-center py-4">
+                      No progress metrics recorded yet by your coach.
+                    </p>
+                  )}
                 </div>
               </div>
             </>
@@ -448,7 +376,7 @@ function Profile() {
         </div>
       </motion.section>
 
-      {/* نافذة التعديل (Edit Profile Modal) - مع رفع الملفات من الجهاز */}
+      {/* نافذة التعديل (Edit Profile Modal) */}
       {isEditOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center px-6 z-50">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto">
@@ -497,7 +425,6 @@ function Profile() {
                 placeholder="Weight (kg)"
               />
 
-              {/* اختيار صورة الأفاتار من نافذة الـ Modal */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   Avatar Image
@@ -517,7 +444,6 @@ function Profile() {
                 </div>
               </div>
 
-              {/* اختيار صورة الكفر من نافذة الـ Modal */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   Cover Image
