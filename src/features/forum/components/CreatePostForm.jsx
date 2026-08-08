@@ -1,25 +1,42 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
-
-// Map sport names to IDs (adjust these based on your backend)
-const SPORT_MAP = {
-  Fitness: "660f7a5c8f8f8f8f8f8f8f01",
-  Boxing: "660f7a5c8f8f8f8f8f8f8f02",
-  Bodybuilding: "660f7a5c8f8f8f8f8f8f8f03",
-  Karate: "660f7a5c8f8f8f8f8f8f8f04",
-  Taekwondo: "660f7a5c8f8f8f8f8f8f8f05",
-};
+// استيراد دالة جلب الرياضات (تأكد من مسار الـ service حسب مشروعك)
+import { getSports } from "../../../services/sportService"; // أو من الـ forumService حسب ما هو متوفر عندك
 
 function CreatePostForm({ onCreatePost }) {
   const [formData, setFormData] = useState({
     title: "",
     body: "",
-    sport: "Fitness",
+    sportId: "", // سنخزن الـ ID الحقيقي هنا
     media: [],
   });
 
+  const [sports, setSports] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingSports, setIsLoadingSports] = useState(true);
+
+  // جلب الرياضات من الباك إند عند تحميل المكون
+  useEffect(() => {
+    const fetchSports = async () => {
+      try {
+        const response = await getSports();
+        const sportsList = response?.data || response || [];
+        setSports(Array.isArray(sportsList) ? sportsList : []);
+        
+        // تعيين أول رياضة كقيمة افتراضية إذا كانت القائمة موجودة
+        if (sportsList.length > 0) {
+          setFormData((prev) => ({ ...prev, sportId: sportsList[0]._id || sportsList[0].id }));
+        }
+      } catch (error) {
+        console.error("Error fetching sports:", error);
+      } finally {
+        setIsLoadingSports(false);
+      }
+    };
+
+    fetchSports();
+  }, []);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -42,24 +59,28 @@ function CreatePostForm({ onCreatePost }) {
       return;
     }
 
+    if (!formData.sportId) {
+      console.error("Sport is required");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // Prepare data for backend
       const postData = {
         title: formData.title.trim(),
         body: formData.body.trim(),
-        sportId: SPORT_MAP[formData.sport],
+        sportId: formData.sportId, // إرسال الـ ID الحقيقي القادم من الداتابيس
         media: formData.media,
       };
 
       await onCreatePost(postData);
 
-      // Reset form
+      // إعادة تعيين النموذج (مع الحفاظ على أول رياضة كافتراضي)
       setFormData({
         title: "",
         body: "",
-        sport: "Fitness",
+        sportId: sports.length > 0 ? (sports[0]._id || sports[0].id) : "",
         media: [],
       });
     } catch (error) {
@@ -97,23 +118,33 @@ function CreatePostForm({ onCreatePost }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <select
-          name="sport"
-          value={formData.sport}
+          name="sportId"
+          value={formData.sportId}
           onChange={handleChange}
           className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-slate-900 dark:text-white"
+          required
         >
-          <option value="Fitness">Fitness</option>
-          <option value="Boxing">Boxing</option>
-          <option value="Bodybuilding">Bodybuilding</option>
-          <option value="Karate">Karate</option>
-          <option value="Taekwondo">Taekwondo</option>
+          {isLoadingSports ? (
+            <option value="">Loading sports...</option>
+          ) : sports.length === 0 ? (
+            <option value="">No sports available</option>
+          ) : (
+            sports.map((sport) => {
+              const sportId = sport._id || sport.id;
+              return (
+                <option key={sportId} value={sportId}>
+                  {sport.name}
+                </option>
+              );
+            })
+          )}
         </select>
       </div>
 
       <Button 
         type="submit" 
         className="w-full md:w-auto"
-        disabled={isLoading}
+        disabled={isLoading || isLoadingSports}
       >
         {isLoading ? "Publishing..." : "Publish Post"}
       </Button>
