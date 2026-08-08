@@ -9,8 +9,6 @@ import CreatePostForm from "../features/forum/components/CreatePostForm";
 
 import { useAuth } from "../context/AuthContext";
 
-import { forumCategories } from "../features/forum/data/forumData";
-
 import {
   getForumPosts,
   getPostsBySport,
@@ -18,6 +16,9 @@ import {
   deleteForumPost,
   updateForumPost,
 } from "../services/forumService";
+import { getAllSports } from "../services/sportsService";
+
+// استيراد دالة جلب الرياضات (تأكد من مسار ملف الـ service لديك)
 
 function Forum() {
   const { user, isCoach, isAdmin } = useAuth();
@@ -25,16 +26,30 @@ function Forum() {
 
   const selectedPostId = new URLSearchParams(location.search).get("post");
 
-  // Permissions: Coaches or Admins or Publishers can create posts
   const canCreatePost = isCoach || isAdmin || user?.role === "publisher";
 
   const [posts, setPosts] = useState([]);
+  const [sports, setSports] = useState([]); // قائمة الرياضات الحقيقية من الداتابيس
   const [loading, setLoading] = useState(false);
-  const [activeCategory, setActiveCategory] = useState("All");
+  const [activeCategory, setActiveCategory] = useState("All"); // "All" أو sportId
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Load posts from backend
+  // 1. جلب الرياضات عند تحميل الصفحة أول مرة
+  useEffect(() => {
+    const fetchSports = async () => {
+      try {
+        const response = await getAllSports();
+        const sportsList = response?.data || response || [];
+        setSports(Array.isArray(sportsList) ? sportsList : []);
+      } catch (error) {
+        console.error("Error fetching sports list:", error);
+      }
+    };
+    fetchSports();
+  }, []);
+
+  // 2. تحميل المنشورات بناءً على الفلتر (All أو Sport ID)
   const loadPosts = async (category = activeCategory, page = 1) => {
     setLoading(true);
     try {
@@ -48,11 +63,10 @@ function Forum() {
       if (category === "All") {
         response = await getForumPosts(params);
       } else {
-        // Filter by sport (category is sport slug or name)
+        // نرسل الـ sportId الحقيقي بدلاً من الاسم النصي
         response = await getPostsBySport(category, params);
       }
 
-      // Extract posts and pagination data
       const responseData = response?.data || response;
       const fetchedPosts = responseData?.posts || [];
       const pagination = responseData?.pagination || {};
@@ -69,12 +83,10 @@ function Forum() {
     }
   };
 
-  // Load posts when category or page changes
   useEffect(() => {
     loadPosts(activeCategory, currentPage);
   }, [activeCategory, currentPage]);
 
-  // Auto-scroll to selected post
   useEffect(() => {
     if (!selectedPostId) return;
 
@@ -94,16 +106,10 @@ function Forum() {
     return () => clearTimeout(timer);
   }, [selectedPostId]);
 
-  // Create new post
   const createPost = async (postData) => {
-    if (!canCreatePost) {
-      console.error("You don't have permission to create posts");
-      return;
-    }
-
+    if (!canCreatePost) return;
     try {
       await createForumPost(postData);
-      // Reset to first page and reload
       setCurrentPage(1);
       await loadPosts(activeCategory, 1);
     } catch (error) {
@@ -111,10 +117,8 @@ function Forum() {
     }
   };
 
-  // Delete post
   const deletePost = async (postId) => {
     if (!confirm("Are you sure you want to delete this post?")) return;
-
     try {
       await deleteForumPost(postId);
       await loadPosts(activeCategory, currentPage);
@@ -123,7 +127,6 @@ function Forum() {
     }
   };
 
-  // Update post
   const updatePost = async (postId, updatedData) => {
     try {
       await updateForumPost(postId, updatedData);
@@ -144,42 +147,61 @@ function Forum() {
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Aside Filter Categories */}
+          {/* Aside Filter Categories (Dynamic) */}
           <aside className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 h-fit">
             <h2 className="text-2xl font-bold mb-5 text-slate-950 dark:text-white">
               Categories
             </h2>
 
             <div className="space-y-3">
-              {forumCategories.map((category) => (
-                <button
-                  key={category}
-                  type="button"
-                  onClick={() => {
-                    setActiveCategory(category);
-                    setCurrentPage(1);
-                  }}
-                  className={
-                    activeCategory === category
-                      ? "w-full text-left bg-red-500 text-white px-4 py-3 rounded-xl transition"
-                      : "w-full text-left bg-slate-100 text-slate-800 hover:bg-red-500 hover:text-white dark:bg-slate-800 dark:text-white px-4 py-3 rounded-xl transition"
-                  }
-                >
-                  {category}
-                </button>
-              ))}
+              {/* زر الكل */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveCategory("All");
+                  setCurrentPage(1);
+                }}
+                className={
+                  activeCategory === "All"
+                    ? "w-full text-left bg-red-500 text-white px-4 py-3 rounded-xl transition"
+                    : "w-full text-left bg-slate-100 text-slate-800 hover:bg-red-500 hover:text-white dark:bg-slate-800 dark:text-white px-4 py-3 rounded-xl transition"
+                }
+              >
+                All
+              </button>
+
+              {/* أزرار الرياضات القادمة من قاعدة البيانات */}
+              {sports.map((sport) => {
+                const sportId = sport._id || sport.id;
+                return (
+                  <button
+                    key={sportId}
+                    type="button"
+                    onClick={() => {
+                      setActiveCategory(sportId); // نمرر الـ ID عند الضغط
+                      setCurrentPage(1);
+                    }}
+                    className={
+                      activeCategory === sportId
+                        ? "w-full text-left bg-red-500 text-white px-4 py-3 rounded-xl transition"
+                        : "w-full text-left bg-slate-100 text-slate-800 hover:bg-red-500 hover:text-white dark:bg-slate-800 dark:text-white px-4 py-3 rounded-xl transition"
+                    }
+                  >
+                    {sport.name}
+                  </button>
+                );
+              })}
             </div>
           </aside>
 
           {/* Main Posts Area */}
           <div className="lg:col-span-3">
             {canCreatePost ? (
-              <CreatePostForm onCreatePost={createPost} />
+              <CreatePostForm onCreatePost={createPost} sportsList={sports} />
             ) : (
               <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 mb-6">
                 <p className="text-slate-600 dark:text-slate-400">
                   Only approved coaches and admins can create forum posts.
-                  You can still read posts, like them, and comment.
                 </p>
               </div>
             )}
