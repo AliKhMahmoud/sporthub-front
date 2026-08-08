@@ -17,10 +17,10 @@ import { createNotification } from "../../../services/notificationService";
 import {
   getPostComments,
   createPostComment,
-  updatePostComment,
   deletePostComment,
   unlikePost,
   likePost,
+  updateComment,
 } from "../../../services/forumService";
 
 function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
@@ -188,7 +188,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
     if (!newText || newText.trim() === "") return;
 
     try {
-      const response = await updatePostComment(commentId, {
+      const response = await updateComment(commentId, {
         body: newText.trim(),
       });
       const updatedComment = response?.data || response;
