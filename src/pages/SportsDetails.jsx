@@ -61,7 +61,7 @@ const trainingPlans = [
   },
 ];
 
-function SportsDetails() {
+function SportDetails() {
   const { id } = useParams(); // تم التعديل لاستخدام الـ id بدلاً من slug
   const { user } = useAuth();
 
@@ -482,4 +482,4 @@ function SportsDetails() {
   );
 }
 
-export default SportsDetails;
+export default SportDetails;
