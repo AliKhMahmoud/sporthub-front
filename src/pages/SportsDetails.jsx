@@ -4,10 +4,9 @@ import { CheckCircle, X } from "lucide-react";
 
 import Container from "../components/ui/Container";
 import Button from "../components/ui/Button";
-
-import { sports } from "../data/sportsData";
 import { useAuth } from "../context/AuthContext";
 
+import { getSportById } from "../services/sportService";
 import {
   getTrainingProgressBySport,
   startWorkout,
@@ -63,23 +62,45 @@ const trainingPlans = [
 ];
 
 function SportsDetails() {
-  const { slug } = useParams();
+  const { id } = useParams(); // تم التعديل لاستخدام الـ id بدلاً من slug
   const { user } = useAuth();
 
   const plansRef = useRef(null);
 
+  const [sport, setSport] = useState(null);
+  const [loadingSport, setLoadingSport] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [workoutStarted, setWorkoutStarted] = useState(false);
   const [myWorkouts, setMyWorkouts] = useState([]);
 
-  const sport = sports.find((item) => item.slug === slug);
+  // جلب تفاصيل الرياضة من الباك إند بناءً على الـ id
+  useEffect(() => {
+    const fetchSportDetails = async () => {
+      try {
+        setLoadingSport(true);
+        const response = await getSportById(id);
+        setSport(response.data || response);
+      } catch (error) {
+        console.error("Error fetching sport details:", error);
+        setSport(null);
+      } finally {
+        setLoadingSport(false);
+      }
+    };
 
+    if (id) {
+      fetchSportDetails();
+    }
+  }, [id]);
+
+  // جلب التمارين الخاصة بهذا الرياضي لهذه الرياضة
   useEffect(() => {
     const loadMyWorkouts = async () => {
-      if (!user || !slug) return;
+      if (!user || !sport) return;
 
       try {
-        const response = await getTrainingProgressBySport(slug);
+        // نستخدم sport.slug أو sport.name حسب ما يتطلبه سيرفس التمارين لديك
+        const response = await getTrainingProgressBySport(sport.slug || sport._id);
         const data = response?.data || response;
         setMyWorkouts(Array.isArray(data) ? data : []);
       } catch (error) {
@@ -89,11 +110,12 @@ function SportsDetails() {
     };
 
     loadMyWorkouts();
-  }, [user, slug]);
+  }, [user, sport]);
 
   const reloadMyWorkouts = async () => {
     try {
-      const response = await getTrainingProgressBySport(slug);
+      if (!sport) return;
+      const response = await getTrainingProgressBySport(sport.slug || sport._id);
       const data = response?.data || response;
       setMyWorkouts(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -106,7 +128,7 @@ function SportsDetails() {
 
     const existingWorkout = myWorkouts.find(
       (workout) =>
-        workout.sportSlug === sport.slug &&
+        (workout.sportSlug === sport.slug || workout.sport === sport.name) &&
         workout.title === selectedPlan.title
     );
 
@@ -126,7 +148,7 @@ function SportsDetails() {
       athleteName: user.name || "Unknown Athlete",
       planType: "normal",
       sport: sport.name,
-      sportSlug: sport.slug,
+      sportSlug: sport.slug || sport._id,
       title: selectedPlan.title,
       level: selectedPlan.level,
       duration: selectedPlan.duration,
@@ -167,7 +189,6 @@ function SportsDetails() {
   const handleRequestProgressReview = async (workoutId) => {
     try {
       await requestProgressReview(workoutId);
-
       alert("Progress review request sent to your coach.");
     } catch (error) {
       console.error(error);
@@ -175,12 +196,18 @@ function SportsDetails() {
     }
   };
 
+  if (loadingSport) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+        <h1 className="text-2xl text-slate-400">Loading sport details...</h1>
+      </main>
+    );
+  }
+
   if (!sport) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
-        <h1 className="text-4xl font-bold">
-          Sport Not Found
-        </h1>
+        <h1 className="text-4xl font-bold">Sport Not Found</h1>
       </main>
     );
   }
@@ -366,7 +393,6 @@ function SportsDetails() {
                               }
                             >
                               <span>{exercise}</span>
-
                               {completed && <CheckCircle size={18} />}
                             </div>
                           );
@@ -380,6 +406,7 @@ function SportsDetails() {
           </div>
         </section>
       </Container>
+      
       {selectedPlan && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center px-4 z-50">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-xl max-h-[85vh] overflow-y-auto">
@@ -409,41 +436,23 @@ function SportsDetails() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
               <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
-                <p className="text-slate-400 text-sm mb-1">
-                  Duration
-                </p>
-
-                <h3 className="text-lg font-bold">
-                  {selectedPlan.duration}
-                </h3>
+                <p className="text-slate-400 text-sm mb-1">Duration</p>
+                <h3 className="text-lg font-bold">{selectedPlan.duration}</h3>
               </div>
 
               <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
-                <p className="text-slate-400 text-sm mb-1">
-                  Schedule
-                </p>
-
-                <h3 className="text-lg font-bold">
-                  {selectedPlan.days}
-                </h3>
+                <p className="text-slate-400 text-sm mb-1">Schedule</p>
+                <h3 className="text-lg font-bold">{selectedPlan.days}</h3>
               </div>
 
               <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
-                <p className="text-slate-400 text-sm mb-1">
-                  Calories
-                </p>
-
-                <h3 className="text-lg font-bold">
-                  {selectedPlan.calories}
-                </h3>
+                <p className="text-slate-400 text-sm mb-1">Calories</p>
+                <h3 className="text-lg font-bold">{selectedPlan.calories}</h3>
               </div>
             </div>
 
             <div className="mb-6">
-              <h3 className="text-2xl font-bold mb-4">
-                Workout Focus
-              </h3>
-
+              <h3 className="text-2xl font-bold mb-4">Workout Focus</h3>
               <ul className="space-y-3">
                 {selectedPlan.exercises.map((exercise) => (
                   <li
