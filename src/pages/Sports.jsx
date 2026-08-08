@@ -8,7 +8,7 @@ function Sports() {
   const [sports, setSports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+  console.log("Sports component rendered. Current sports state:", sports);
   useEffect(() => {
     const fetchSports = async () => {
       try {

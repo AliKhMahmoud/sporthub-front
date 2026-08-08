@@ -8,6 +8,7 @@ function SportCard({ sport }) {
         alt={sport.name}
         className="w-full h-60 object-cover"
       />
+    
 
       {/* اجعل حاوية المحتوى flex لتوزيع العناصر ودفع الزر للأسفل */}
       <div className="p-6 flex flex-col flex-grow">
