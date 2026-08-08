@@ -8,7 +8,6 @@ import { useAuth } from "../context/AuthContext";
 
 import { getSportById } from "../services/sportsService";
 import { getPlans } from "../services/planService"; 
-// ✅ استيراد الدوال الجديدة من ملف الـ service الخاص بنا
 import { startPlan, getActiveProgress, toggleExercise } from "../services/workoutProgressService";
 
 function SportsDetails() {
@@ -22,11 +21,10 @@ function SportsDetails() {
   const [plans, setPlans] = useState([]); 
   const [selectedPlan, setSelectedPlan] = useState(null);
   
-  // ✅ أضافات جديدة لحفظ حالة التقدم وسجل التمرين الحالي
   const [activeProgress, setActiveProgress] = useState(null);
   const [loadingProgress, setLoadingProgress] = useState(false);
 
-  // 1. جلب الرياضة
+  // 1. جلب الرياضة والخطط الخاصة بها
   useEffect(() => {
     const fetchSportDetails = async () => {
       try {
@@ -37,7 +35,9 @@ function SportsDetails() {
         
         if (sportData) {
           const plansRes = await getPlans(sportData.slug);
-          setPlans(Array.isArray(plansRes) ? plansRes : []);
+          // ✅ التعديل هنا: استخراج الـ data من استجابة السيرفر بشكل صحيح
+          const plansList = plansRes.data || plansRes;
+          setPlans(Array.isArray(plansList) ? plansList : []);
         }
       } catch (error) {
         console.error("Error fetching details:", error);
@@ -48,7 +48,7 @@ function SportsDetails() {
     if (id) fetchSportDetails();
   }, [id]);
 
-  // ✅ جلب حالة التقدم عندما يتم اختيار خطة معينة (للرياضي)
+  // جلب حالة التقدم عندما يتم اختيار خطة معينة (للرياضي)
   useEffect(() => {
     const fetchActiveProgress = async () => {
       if (!selectedPlan || user?.role !== 'athlete') return;
@@ -57,7 +57,6 @@ function SportsDetails() {
         const res = await getActiveProgress(selectedPlan._id);
         setActiveProgress(res.data || res);
       } catch (error) {
-        // إذا لم يكن هناك سجل بدأه مسبقاً، لا بأس (سيكون null ليظهر زر البدء)
         setActiveProgress(null);
       } finally {
         setLoadingProgress(false);
@@ -67,7 +66,7 @@ function SportsDetails() {
     fetchActiveProgress();
   }, [selectedPlan]);
 
-  // ✅ دالة بدء الخطة التدريبية (ل لرياضي)
+  // دالة بدء الخطة التدريبية (لرياضي)
   const handleStartWorkout = async () => {
     try {
       const res = await startPlan(selectedPlan._id);
@@ -78,7 +77,7 @@ function SportsDetails() {
     }
   };
 
-  // ✅ دالة الضغط على التمرين (Check / Uncheck)
+  // دالة الضغط على التمرين (Check / Uncheck)
   const handleToggleExercise = async (exerciseName) => {
     if (!activeProgress) return;
     try {
@@ -132,7 +131,7 @@ function SportsDetails() {
           </div>
         </section>
 
-        {/* ✅ عرض تفاصيل الخطة المحددة وإدارة التمارين (للرياضي) */}
+        {/* عرض تفاصيل الخطة المحددة وإدارة التمارين (للرياضي) */}
         {selectedPlan && (
           <div className="mt-10 bg-slate-900 border border-slate-800 rounded-3xl p-8">
             <div className="flex justify-between items-center mb-6">
@@ -144,14 +143,12 @@ function SportsDetails() {
             
             <p className="text-slate-300 mb-6">{selectedPlan.description}</p>
 
-            {/* إذا لم يبدأ الرياضي الخطة بعد، نعرض زر Begin Workout */}
             {user?.role === 'athlete' && !activeProgress && (
               <Button onClick={handleStartWorkout} className="bg-red-600 hover:bg-red-700">
                 Begin Workout Plan
               </Button>
             )}
 
-            {/* إذا بدأ الخطة، نعرض قائمة التمارين مع نسبة الإنجاز والـ Checkboxes */}
             {activeProgress && (
               <div className="mt-6">
                 <div className="flex justify-between items-center mb-4">
