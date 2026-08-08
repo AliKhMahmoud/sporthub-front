@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
+import { getAllSports } from "../../../services/sportsService";
 // استيراد دالة جلب الرياضات (تأكد من مسار الـ service حسب مشروعك)
-import { getSports } from "../../../services/sportService"; // أو من الـ forumService حسب ما هو متوفر عندك
 
 function CreatePostForm({ onCreatePost }) {
   const [formData, setFormData] = useState({
@@ -20,7 +20,7 @@ function CreatePostForm({ onCreatePost }) {
   useEffect(() => {
     const fetchSports = async () => {
       try {
-        const response = await getSports();
+        const response = await getAllSports();
         const sportsList = response?.data || response || [];
         setSports(Array.isArray(sportsList) ? sportsList : []);
         
