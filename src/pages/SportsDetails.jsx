@@ -73,6 +73,7 @@ function SportsDetails() {
         const res = await getActiveProgress(selectedPlan._id);
         setActiveProgress(res.data || res);
       } catch (error) {
+        // إذا كان الخطأ 404 فهذا طبيعي (لأن المستخدم لم يبدأ الخطة بعد) فلا داعي لاعتباره خطأ حقيقي
         setActiveProgress(null);
       } finally {
         setLoadingProgress(false);
