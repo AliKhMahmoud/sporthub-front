@@ -61,8 +61,8 @@ const trainingPlans = [
   },
 ];
 
-function SportDetails() {
-  const { id } = useParams(); // تم التعديل لاستخدام الـ id بدلاً من slug
+function SportsDetails() { // تم توحيد اسم المكون ليطابق المعايير
+  const { id } = useParams();
   const { user } = useAuth();
 
   const plansRef = useRef(null);
@@ -99,7 +99,6 @@ function SportDetails() {
       if (!user || !sport) return;
 
       try {
-        // نستخدم sport.slug أو sport.name حسب ما يتطلبه سيرفس التمارين لديك
         const response = await getTrainingProgressBySport(sport.slug || sport._id);
         const data = response?.data || response;
         setMyWorkouts(Array.isArray(data) ? data : []);
@@ -134,12 +133,10 @@ function SportDetails() {
 
     if (existingWorkout) {
       setWorkoutStarted(true);
-
       setTimeout(() => {
         setSelectedPlan(null);
         setWorkoutStarted(false);
       }, 1200);
-
       return;
     }
 
@@ -163,9 +160,7 @@ function SportDetails() {
     try {
       await startWorkout(newWorkout);
       await reloadMyWorkouts();
-
       setWorkoutStarted(true);
-
       setTimeout(() => {
         setSelectedPlan(null);
         setWorkoutStarted(false);
@@ -255,7 +250,6 @@ function SportDetails() {
               alt={sport.name}
               className="w-full h-[520px] object-cover rounded-3xl border border-slate-800 shadow-2xl"
             />
-
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 to-transparent rounded-3xl" />
           </div>
         </section>
@@ -446,7 +440,7 @@ function SportDetails() {
               </div>
 
               <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
-                <p className="text-slate-400 text-sm mb-1">Calories</p>
+                <p className="text-slate-400 text-sm/ mb-1">Calories</p>
                 <h3 className="text-lg font-bold">{selectedPlan.calories}</h3>
               </div>
             </div>
@@ -482,4 +476,4 @@ function SportDetails() {
   );
 }
 
-export default SportDetails;
+export default SportsDetails;
