@@ -82,43 +82,38 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
   };
 
   const toggleLikeHandler = async () => {
-    if (!currentUserId) {
-      console.error("User not authenticated");
-      return;
-    }
+    if (!currentUserId) return;
 
     try {
       if (liked) {
-        // Unlike the post
+        // إذا كان معجباً به مسبقاً، نقوم بإلغاء الإعجاب
         await unlikePost(postId);
         setLiked(false);
         setLikesCount((prev) => Math.max(0, prev - 1));
       } else {
-        // Like the post
-        const result = await likePost(postId);
-        const resData = result?.data || result;
-
+        // إذا لم يكن معجباً به، نقوم بإضافة إعجاب
+        await likePost(postId);
         setLiked(true);
-        setLikesCount(resData?.likesCount || likesCount + 1);
+        setLikesCount((prev) => prev + 1);
+      }
 
-        // Send notification to post owner
-        if (
-          postOwnerId &&
-          String(postOwnerId) !== String(currentUserId) &&
-          currentUser
-        ) {
-          await createNotification({
-            type: "POST_LIKED",
-            title: "New Like",
-            message: `${currentUser.name || "Someone"} liked your post: "${post.title}"`,
-            userId: postOwnerId,
-            senderId: currentUserId,
-            postId: postId,
-          });
-        }
+      // إرسال إشعار لصاحب المنشور إذا لم يكن المستخدم الحالي هو صاحب المنشور
+      if (
+        !liked &&
+        postOwnerId &&
+        String(postOwnerId) !== String(currentUserId)
+      ) {
+        await createNotification({
+          type: "like",
+          title: "New Like",
+          message: `${currentUser?.name || "Someone"} liked your post: ${post.title}`,
+          userId: postOwnerId,
+          senderId: currentUserId,
+          postId: postId,
+        });
       }
     } catch (error) {
-      console.error("Error toggling like:", error);
+      console.error("Failed to toggle like:", error);
     }
   };
 
