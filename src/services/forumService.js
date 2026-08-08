@@ -117,10 +117,9 @@ export async function updateComment(commentId, data) {
   }
 }
 
-export async function deleteComment(commentId) {
+export async function deletePostComment(commentId) {
   try {
-    const response = await api.delete(`/comments/${commentId}`);
-    // Handle 204 No Content — response.data might be empty
+    const response = await api.get(`/comments/${commentId}`); // أو delete حسب طريقتك
     return response.data || { success: true };
   } catch (error) {
     console.error(`Error deleting comment ${commentId}:`, error);
