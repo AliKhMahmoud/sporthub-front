@@ -1,18 +1,17 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  CheckCircle,
-  Clock,
+  Activity,
+  Calendar,
   Eye,
   MessageSquare,
-  XCircle,
-  Trash2, // استيراد أيقونة الحذف
+  Trash2,
 } from "lucide-react";
 
 import {
   addProgress,
   deleteProgress,
-  getAllTraineesProgress, // استيراد دالة الحذف
+  getAllTraineesProgress,
 } from "../services/progressService";
 
 function DashboardProgressReviews() {
@@ -30,70 +29,42 @@ function DashboardProgressReviews() {
       const requestsArray = Array.isArray(data) ? data : data?.data || [];
       setRequests(requestsArray);
     } catch (error) {
-      console.error("Error loading progress requests:", error);
+      console.error("Error loading progress records:", error);
       setRequests([]);
     }
   };
 
-  const approveRequest = async (requestId) => {
+  const handleUpdateNote = async (progressId) => {
     try {
+      // استخدام addProgress لإضافة أو تحديث الملاحظة المرتبطة بالسجل إذا لزم الأمر
       await addProgress({
-        progressId: requestId,
-        status: "approved",
-        coachNote,
+        progressId,
+        note: coachNote,
       });
 
       await loadRequests();
       setSelectedRequest(null);
       setCoachNote("");
     } catch (error) {
-      console.error("Error approving request:", error);
+      console.error("Error updating progress note:", error);
     }
   };
 
-  const rejectRequest = async (requestId) => {
-    try {
-      await addProgress({
-        progressId: requestId,
-        status: "rejected",
-        coachNote,
-      });
-
-      await loadRequests();
-      setSelectedRequest(null);
-      setCoachNote("");
-    } catch (error) {
-      console.error("Error rejecting request:", error);
-    }
-  };
-
-  // دالة الحذف الجديدة
   const handleDeleteRequest = async (requestId) => {
-    if (!window.confirm("Are you sure you want to delete this progress request?")) return;
+    if (!window.confirm("Are you sure you want to delete this progress record?")) return;
     try {
       await deleteProgress(requestId);
       await loadRequests();
-      // إذا كان العنصر المحذوف مفتوحاً حالياً في الـ Modal، نقوم بإغلاقه
       if (selectedRequest && (selectedRequest.id === requestId || selectedRequest._id === requestId)) {
         setSelectedRequest(null);
         setCoachNote("");
       }
     } catch (error) {
-      console.error("Error deleting request:", error);
+      console.error("Error deleting record:", error);
     }
   };
 
-  const pendingCount = requests.filter(
-    (item) => item.status === "pending"
-  ).length;
-
-  const approvedCount = requests.filter(
-    (item) => item.status === "approved"
-  ).length;
-
-  const rejectedCount = requests.filter(
-    (item) => item.status === "rejected"
-  ).length;
+  const totalRecords = requests.length;
 
   return (
     <main className="p-10 text-white">
@@ -103,36 +74,27 @@ function DashboardProgressReviews() {
         className="mb-10"
       >
         <span className="bg-blue-500/10 text-blue-400 px-4 py-2 rounded-full font-semibold">
-          Progress Reviews
+          Progress Management
         </span>
 
         <h1 className="text-5xl font-extrabold mt-6 mb-4">
-          Athlete Progress Requests
+          Trainees Progress Logs
         </h1>
 
         <p className="text-slate-400 text-lg">
-          Review athletes&apos; training progress requests, approve progress,
-          reject requests, and add coaching notes.
+          Monitor your trainees&apos; performance metrics, track measurements, and manage training progress history.
         </p>
       </motion.div>
 
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
-          <Clock size={28} className="text-yellow-400 mb-4" />
-          <p className="text-slate-400 mb-2">Pending</p>
-          <h2 className="text-4xl font-bold">{pendingCount}</h2>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
-          <CheckCircle size={28} className="text-emerald-400 mb-4" />
-          <p className="text-slate-400 mb-2">Approved</p>
-          <h2 className="text-4xl font-bold">{approvedCount}</h2>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
-          <XCircle size={28} className="text-red-400 mb-4" />
-          <p className="text-slate-400 mb-2">Rejected</p>
-          <h2 className="text-4xl font-bold">{rejectedCount}</h2>
+      <section className="grid grid-cols-1 md:grid-cols-1 gap-5 mb-10">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 flex items-center gap-5">
+          <div className="p-4 bg-blue-500/10 text-blue-400 rounded-2xl">
+            <Activity size={32} />
+          </div>
+          <div>
+            <p className="text-slate-400 mb-1">Total Progress Records</p>
+            <h2 className="text-4xl font-bold">{totalRecords}</h2>
+          </div>
         </div>
       </section>
 
@@ -144,21 +106,23 @@ function DashboardProgressReviews() {
           />
 
           <h2 className="text-3xl font-bold mb-3">
-            No Review Requests
+            No Progress Records Found
           </h2>
 
           <p className="text-slate-400">
-            Athlete progress review requests will appear here.
+            Trainees performance metrics and progress logs will appear here.
           </p>
         </div>
       ) : (
         <div className="space-y-6">
           {requests.map((request) => {
             const requestId = request.id || request._id;
-            const athleteName = request.athlete?.name || request.athleteName || "Athlete";
-            const planTitle = request.plan?.title || request.planTitle || "Training Plan";
+            const athleteName = request.user?.name || request.athleteName || "Trainee";
             const sportName = request.sport?.name || request.sport || "Sport";
-            const progressVal = request.currentProgress ?? request.progress ?? 0;
+            const metric = request.metric || "Metric";
+            const value = request.value ?? 0;
+            const note = request.note || "No notes provided";
+            const recordedDate = request.recordedAt ? new Date(request.recordedAt).toLocaleDateString() : "";
 
             return (
               <motion.div
@@ -169,21 +133,28 @@ function DashboardProgressReviews() {
               >
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
                   <div>
-                    <h2 className="text-2xl font-bold">
-                      {athleteName}
-                    </h2>
+                    <div className="flex items-center gap-3 mb-2">
+                      <h2 className="text-2xl font-bold">
+                        {athleteName}
+                      </h2>
+                      <span className="bg-slate-800 text-blue-400 text-xs px-3 py-1 rounded-full font-medium">
+                        {sportName}
+                      </span>
+                    </div>
 
-                    <p className="text-slate-400 mt-2">
-                      Plan: {planTitle}
+                    <p className="text-slate-300 font-semibold mt-1">
+                      Metric: <span className="text-blue-400">{metric}</span> = <span className="text-emerald-400">{value}</span>
                     </p>
 
-                    <p className="text-slate-400">
-                      Sport: {sportName}
+                    <p className="text-slate-400 text-sm mt-1">
+                      Note: {note}
                     </p>
 
-                    <p className="text-slate-400">
-                      Current Progress: {progressVal}%
-                    </p>
+                    {recordedDate && (
+                      <p className="text-slate-500 text-xs mt-2 flex items-center gap-1">
+                        <Calendar size={14} /> {recordedDate}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap gap-3 items-center">
@@ -191,33 +162,19 @@ function DashboardProgressReviews() {
                       type="button"
                       onClick={() => {
                         setSelectedRequest(request);
-                        setCoachNote(request.coachNote || "");
+                        setCoachNote(request.note || "");
                       }}
                       className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-3 rounded-xl transition"
                     >
                       <Eye size={18} />
-                      View
+                      View Details
                     </button>
 
-                    <span
-                      className={
-                        "px-4 py-3 rounded-xl text-sm font-semibold " +
-                        (request.status === "approved"
-                          ? "bg-emerald-500/10 text-emerald-400"
-                          : request.status === "rejected"
-                          ? "bg-red-500/10 text-red-400"
-                          : "bg-yellow-500/10 text-yellow-400")
-                      }
-                    >
-                      {request.status || "pending"}
-                    </span>
-
-                    {/* زر الحذف السريع ضمن القائمة */}
                     <button
                       type="button"
                       onClick={() => handleDeleteRequest(requestId)}
                       className="p-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl transition"
-                      title="Delete Request"
+                      title="Delete Record"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -233,60 +190,50 @@ function DashboardProgressReviews() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-6 z-50">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-3xl w-full max-h-[85vh] overflow-y-auto">
             <h2 className="text-3xl font-bold mb-2">
-              Review Progress
+              Progress Details
             </h2>
 
             <p className="text-slate-400 mb-6">
-              Athlete: {selectedRequest.athlete?.name || selectedRequest.athleteName || "Athlete"}
+              Trainee: {selectedRequest.user?.name || "Trainee"}
             </p>
 
-            <div className="bg-slate-800 rounded-2xl p-5 mb-6">
-              <p className="text-slate-400 mb-2">
-                Plan: {selectedRequest.plan?.title || selectedRequest.planTitle || "Training Plan"}
+            <div className="bg-slate-800 rounded-2xl p-5 mb-6 space-y-2">
+              <p className="text-slate-300">
+                <span className="text-slate-400">Sport:</span> {selectedRequest.sport?.name || "Sport"}
               </p>
-
-              <p className="text-slate-400 mb-2">
-                Sport: {selectedRequest.sport?.name || selectedRequest.sport || "Sport"}
+              <p className="text-slate-300">
+                <span className="text-slate-400">Metric:</span> {selectedRequest.metric}
               </p>
-
-              <p className="text-slate-400">
-                Current Progress: {selectedRequest.currentProgress ?? selectedRequest.progress ?? 0}%
+              <p className="text-slate-300">
+                <span className="text-slate-400">Value:</span> {selectedRequest.value}
+              </p>
+              <p className="text-slate-300">
+                <span className="text-slate-400">Recorded At:</span> {selectedRequest.recordedAt ? new Date(selectedRequest.recordedAt).toLocaleString() : ""}
               </p>
             </div>
 
+            <label className="block text-slate-400 mb-2 font-medium">Coach Note / Feedback</label>
             <textarea
               value={coachNote}
               onChange={(event) =>
                 setCoachNote(event.target.value)
               }
-              placeholder="Write a coaching note..."
-              rows="5"
+              placeholder="Add a note or feedback for this metric..."
+              rows="4"
               className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 outline-none focus:border-blue-500 text-white"
             />
 
-            <div className="flex flex-col md:flex-row gap-4 mt-6">
+            <div className="flex gap-4 mt-6">
               <button
                 type="button"
                 onClick={() =>
-                  approveRequest(selectedRequest.id || selectedRequest._id)
+                  handleUpdateNote(selectedRequest.id || selectedRequest._id)
                 }
-                className="flex-1 bg-emerald-500 hover:bg-emerald-600 py-4 rounded-xl font-semibold transition"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 py-4 rounded-xl font-semibold transition"
               >
-                Approve Progress
+                Save Note
               </button>
 
-              <button
-                type="button"
-                onClick={() =>
-                  rejectRequest(selectedRequest.id || selectedRequest._id)
-                }
-                className="flex-1 bg-red-500 hover:bg-red-600 py-4 rounded-xl font-semibold transition"
-              >
-                Reject Request
-              </button>
-            </div>
-
-            <div className="flex gap-4 mt-4">
               <button
                 type="button"
                 onClick={() => handleDeleteRequest(selectedRequest.id || selectedRequest._id)}
@@ -302,7 +249,7 @@ function DashboardProgressReviews() {
                   setSelectedRequest(null);
                   setCoachNote("");
                 }}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 py-4 rounded-xl font-semibold transition"
+                className="bg-slate-700 hover:bg-slate-600 py-4 px-6 rounded-xl font-semibold transition"
               >
                 Close
               </button>

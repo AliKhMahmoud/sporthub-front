@@ -18,27 +18,27 @@ function DashboardLayout() {
   const links = [
     {
       label: "Overview",
-      path: "/dashboard/coach",
+      path: "/dashboard",
       icon: LayoutDashboard,
     },
     {
       label: "My Trainees",
-      path: "/dashboard/coach/trainees",
+      path: "/dashboard/trainees",
       icon: Users,
     },
     {
       label: "Pending AI Plans",
-      path: "/dashboard/coach/ai-plans",
+      path: "/dashboard/ai-plans",
       icon: Plus,
     },
     {
       label: "Progress Reviews", // اسم الرابط في القائمة
-      path: "/dashboard/coach/progress-reviews", // المسار الخاص بصفحة المراجعات
+      path: "/dashboard/progress-reviews", // المسار الخاص بصفحة المراجعات
       icon: CheckCircle, // أو أي أيقونة مناسبة مثل Clock أو Activity
     },
     {
       label: "Chats",
-      path: "/dashboard/coach/chats",
+      path: "/dashboard/chats",
       icon: Bot,
     },
   ];
