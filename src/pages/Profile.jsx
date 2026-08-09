@@ -229,14 +229,24 @@ function Profile() {
   const handleSaveProgress = async (event) => {
     event.preventDefault();
     try {
-      const res = await addProgress(progressForm);
+      const payload = {
+        sport: progressForm.sport,
+        metric: progressForm.metric,
+        value: Number(progressForm.value),
+        note: progressForm.note,
+        userId: user?._id || user?.id,
+      };
+
+      const res = await addProgress(payload);
       if (res?.success || res) {
         setIsAddProgressOpen(false);
         setProgressForm({ sport: "", metric: "weight", value: "", note: "" });
         loadProfileData();
       }
     } catch (error) {
-      console.error("Error creating progress:", error);
+      // طباعة تفاصيل الخطأ القادمة من الـ Backend بشكل واضح في الكونسول
+      console.error("Error Response Data:", error.response?.data);
+      console.error("Full Error Object:", error);
     }
   };
 
