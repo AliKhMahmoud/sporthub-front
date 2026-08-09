@@ -1,18 +1,16 @@
 import { useEffect, useState } from "react";
-import {
-  Camera,
-  Zap,
-  Plus,
-} from "lucide-react";
+import { Zap, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 
 import {
   getProfile,
   updateProfile,
-  uploadAvatar,
-  uploadCover,
 } from "../services/profileService";
-import { getMyProgress, getMyProgressStats, addProgress } from "../services/progressService";
+import {
+  getMyProgress,
+  getMyProgressStats,
+  addProgress,
+} from "../services/progressService";
 import statService from "../services/statService";
 
 import { useAuth } from "../context/AuthContext";
@@ -28,12 +26,7 @@ function Profile() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isAddProgressOpen, setIsAddProgressOpen] = useState(false);
 
-  const [profilePosts, setProfilePosts] = useState([]);
-  const [accountActivity, setAccountActivity] = useState([]);
-  const [aiPlans, setAiPlans] = useState([]);
-  const [normalWorkouts, setNormalWorkouts] = useState([]);
-  
-  // حالات الـ Progress والإحصائيات والرياضات
+  const [profileData, setProfileData] = useState(null);
   const [progressStats, setProgressStats] = useState([]);
   const [progressHistory, setProgressHistory] = useState([]);
   const [availableSports, setAvailableSports] = useState([]);
@@ -46,16 +39,6 @@ function Profile() {
     note: "",
   });
 
-  const [profileStats, setProfileStats] = useState({
-    forumPosts: 0,
-    likesReceived: 0,
-    commentsReceived: 0,
-    averageProgress: 0,
-    acceptedAthletes: 0,
-    pendingRequests: 0,
-    coachRating: 0,
-  });
-
   const [xpData, setXpData] = useState({
     xp: 0,
     level: 1,
@@ -65,71 +48,48 @@ function Profile() {
   });
 
   const [formData, setFormData] = useState({
-    name: user?.name || "",
-    about: user?.bio || user?.about || "",
-    phone: user?.phone || "",
-    height: user?.height || "",
-    weight: user?.weight || "",
-    coachSport: user?.coachSport || "Fitness",
+    name: "",
+    about: "",
+    phone: "",
+    height: "",
+    weight: "",
+    coachSport: "Fitness",
   });
-
-  const [avatarPreview, setAvatarPreview] = useState(
-    user?.avatar || "https://i.pravatar.cc/150"
-  );
-  const [coverPreview, setCoverPreview] = useState(
-    user?.cover ||
-      "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1600&auto=format&fit=crop"
-  );
 
   const loadProfileData = async () => {
     try {
-      const data = await getProfile();
-      const profileUser = data?.user || user;
+      // 1. جلب بيانات البروفايل الرئيسية من الـ API
+      const response = await getProfile();
+      const userData = response?.data || {};
 
-      if (profileUser) {
-        setFormData({
-          name: profileUser.name || "",
-          about: profileUser.bio || profileUser.about || "",
-          phone: profileUser.phone || "",
-          height: profileUser.height || "",
-          weight: profileUser.weight || "",
-          coachSport: profileUser.coachSport || "Fitness",
-        });
+      setProfileData(userData);
 
-        if (profileUser.avatar) setAvatarPreview(profileUser.avatar);
-        if (profileUser.cover) setCoverPreview(profileUser.cover);
-      }
+      // تعبئة البيانات في الفورم بناءً على شكل الاستجابة من الباك إند
+      setFormData({
+        name: userData.name || "",
+        about: userData.profile?.bio || "",
+        phone: userData.phone || "",
+        height: userData.profile?.height || "",
+        weight: userData.profile?.weight || "",
+        coachSport: userData.sport?.name || "Fitness",
+      });
 
-      setProfilePosts(data?.posts || []);
-      setAccountActivity(data?.notifications || []);
-      setAiPlans(data?.aiPlans || []);
-      setNormalWorkouts(data?.workouts || []);
-
-      // جلب الرياضات
+      // 2. جلب قائمة الرياضات
       try {
         const sportsRes = await getAllSports();
-        setAvailableSports(Array.isArray(sportsRes) ? sportsRes : (sportsRes?.data || []));
+        setAvailableSports(
+          Array.isArray(sportsRes) ? sportsRes : sportsRes?.data || []
+        );
       } catch (e) {
         console.error("Error loading sports:", e);
       }
 
-      // جلب البيانات الخاصة بالرياضي
-      if (isAthlete) {
-        // ─── جلب الإحصائيات الأساسية ───────────────────────────────
+      // 3. جلب البيانات الخاصة بالرياضي
+      if (userData.role === "athlete" || isAthlete) {
+        // جلب الإحصائيات الأساسية والنقاط XP
         try {
           const statsRes = await statService.getMyStats();
           if (statsRes) {
-            setProfileStats({
-              forumPosts: statsRes.totalPosts || 0,
-              likesReceived: statsRes.receivedLikes || 0,
-              commentsReceived: statsRes.receivedComments || 0,
-              averageProgress: statsRes.averageProgress || 0,
-              acceptedAthletes: 0,
-              pendingRequests: 0,
-              coachRating: statsRes.averageRating || 0,
-            });
-
-            // حفظ XP والـ level
             setXpData({
               xp: statsRes.xp || 0,
               level: statsRes.level || 1,
@@ -142,7 +102,7 @@ function Profile() {
           console.error("Error loading athlete stats:", statsError);
         }
 
-        // ─── جلب سجلات التقدم ───────────────────────────────────
+        // جلب سجلات التقدم
         try {
           const progressRes = await getMyProgress();
           const progressData = progressRes?.data || [];
@@ -151,7 +111,7 @@ function Profile() {
           console.error("Error loading progress history:", progError);
         }
 
-        // ─── جلب إحصائيات التقدم (Latest, Best, Average) ──────────
+        // جلب إحصائيات التقدم (Latest, Best, Average)
         try {
           const progressStatsRes = await getMyProgressStats();
           const statsData = progressStatsRes?.data || [];
@@ -167,7 +127,7 @@ function Profile() {
 
   useEffect(() => {
     loadProfileData();
-  }, [user, isAthlete]);
+  }, [user]);
 
   const trainingSports = [
     ...new Set(
@@ -179,48 +139,18 @@ function Profile() {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [name]: value,
-    });
+    }));
   };
 
   const handleProgressChange = (event) => {
     const { name, value } = event.target;
-    setProgressForm({
-      ...progressForm,
+    setProgressForm((prev) => ({
+      ...prev,
       [name]: value,
-    });
-  };
-
-  const handleFileChange = async (event, type) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const previewUrl = URL.createObjectURL(file);
-
-    if (type === "avatar") {
-      setAvatarPreview(previewUrl);
-    } else if (type === "cover") {
-      setCoverPreview(previewUrl);
-    }
-
-    // رفع الصورة مباشرة باستخدام الدوال المنفصلة uploadAvatar أو uploadCover
-    try {
-      let result;
-      if (type === "avatar") {
-        result = await uploadAvatar(file);
-      } else if (type === "cover") {
-        result = await uploadCover(file);
-      }
-
-      const updatedUser = result.data || result.user || result;
-      if (updatedUser) {
-        login(updatedUser);
-      }
-    } catch (error) {
-      console.error(`Error uploading ${type}:`, error);
-    }
+    }));
   };
 
   const handleSave = async (event) => {
@@ -229,23 +159,25 @@ function Profile() {
     try {
       const dataToSend = {
         name: formData.name,
-        about: formData.about,
+        bio: formData.about,
         phone: formData.phone,
-        height: formData.height,
-        weight: formData.weight,
+        height: Number(formData.height) || 0,
+        weight: Number(formData.weight) || 0,
       };
 
       if (isCoach) {
         dataToSend.coachSport = formData.coachSport;
       }
-      
+
       const result = await updateProfile(dataToSend);
-      const updatedUser = result.data || result.user || result;
-      
+      const updatedUser = result?.data || result;
+
       if (updatedUser) {
         login(updatedUser);
       }
+
       setIsEditOpen(false);
+      loadProfileData();
     } catch (error) {
       console.error("Error saving profile:", error);
     }
@@ -274,6 +206,17 @@ function Profile() {
     }
   };
 
+  // تعيين الصور الافتراضية في حال كانت null من السيرفر
+  const avatarUrl =
+    profileData?.avatar ||
+    user?.avatar ||
+    "https://i.pravatar.cc/150";
+
+  const coverUrl =
+    profileData?.cover ||
+    user?.cover ||
+    "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1600&auto=format&fit=crop";
+
   return (
     <main className="max-w-7xl mx-auto px-6 py-12">
       <motion.section
@@ -281,45 +224,25 @@ function Profile() {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm dark:shadow-none"
       >
+        {/* الغلاف (Cover Image) */}
         <div className="h-72 overflow-hidden relative">
           <img
-            src={coverPreview}
+            src={coverUrl}
             alt="cover"
             className="w-full h-full object-cover"
           />
-
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-
-          <label className="absolute top-5 right-5 bg-black/70 text-white px-4 py-3 rounded-xl cursor-pointer hover:bg-black transition flex items-center gap-2">
-            <Camera size={18} />
-            Change Cover
-            <input
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={(event) => handleFileChange(event, "cover")}
-            />
-          </label>
         </div>
 
         <div className="px-8 pb-10 relative">
+          {/* الصورة الشخصية (Avatar) */}
           <div className="absolute -top-20">
             <div className="relative w-40 h-40">
               <img
-                src={avatarPreview}
-                alt={user?.name || "profile"}
+                src={avatarUrl}
+                alt={profileData?.name || "profile"}
                 className="w-40 h-40 rounded-full border-4 border-white dark:border-slate-950 object-cover shadow-xl"
               />
-
-              <label className="absolute bottom-2 right-2 bg-red-500 hover:bg-red-600 text-white w-11 h-11 rounded-full cursor-pointer transition flex items-center justify-center shadow-lg">
-                <Camera size={19} />
-                <input
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={(event) => handleFileChange(event, "avatar")}
-                />
-              </label>
             </div>
           </div>
 
@@ -327,16 +250,36 @@ function Profile() {
             <div>
               <div className="flex flex-wrap items-center gap-3 mb-3">
                 <h1 className="text-5xl font-extrabold text-slate-950 dark:text-white">
-                  {formData.name || user?.name}
+                  {profileData?.name || user?.name}
                 </h1>
 
-                <span className="bg-red-500/10 text-red-500 dark:text-red-400 px-4 py-2 rounded-full text-sm font-semibold">
-                  {isCoach ? "Coach" : "Athlete"}
+                <span className="bg-red-500/10 text-red-500 dark:text-red-400 px-4 py-2 rounded-full text-sm font-semibold capitalize">
+                  {profileData?.role || user?.role || "Member"}
                 </span>
               </div>
+
               <p className="text-slate-600 dark:text-slate-400 text-lg">
-                {user?.email || "sports member"} • SportsHub Member
+                {profileData?.email || user?.email || "sports member"} • SportsHub Member
               </p>
+
+              {/* الشرح الشخصي Bio */}
+              {profileData?.profile?.bio && (
+                <p className="text-slate-700 dark:text-slate-300 mt-3 max-w-2xl">
+                  {profileData.profile.bio}
+                </p>
+              )}
+
+              {/* الطول والوزن */}
+              {(profileData?.profile?.height || profileData?.profile?.weight) && (
+                <div className="flex gap-4 mt-3 text-sm font-medium text-slate-600 dark:text-slate-400">
+                  {profileData?.profile?.height && (
+                    <span>Height: <strong className="text-slate-900 dark:text-white">{profileData.profile.height} cm</strong></span>
+                  )}
+                  {profileData?.profile?.weight && (
+                    <span>Weight: <strong className="text-slate-900 dark:text-white">{profileData.profile.weight} kg</strong></span>
+                  )}
+                </div>
+              )}
 
               {isCoach && formData.coachSport && (
                 <div className="mt-4 inline-flex items-center gap-2 bg-blue-500/10 text-blue-500 px-4 py-2 rounded-xl font-semibold">
@@ -370,6 +313,7 @@ function Profile() {
 
           {isAthlete && (
             <>
+              {/* قسم مستويات الـ XP */}
               <div className="mt-10 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-6">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
                   <div>
@@ -394,6 +338,7 @@ function Profile() {
                 </p>
               </div>
 
+              {/* قسم مقاييس الأداء والإحصائيات */}
               <div className="mt-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-bold text-slate-950 dark:text-white">

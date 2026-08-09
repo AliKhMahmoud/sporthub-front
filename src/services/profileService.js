@@ -1,36 +1,37 @@
 import api from "./api";
 
-// تعديل المسار ليطابق router.get('/me', ...) في الباك إند
+// 1. جلب بيانات المستخدم الشخصية
 export async function getProfile() {
   const response = await api.get("/profile/me");
   return response.data;
 }
 
-export async function getProfileStats() {
-  const response = await api.get("/profile/stats"); // تأكد إذا كانت موجودة بالباك أو عدلها حسب الحاجة
+// 2. جلب نشاطات المستخدم (الإحصائيات، المنشورات، الخطط)
+export async function getMyActivity() {
+  const response = await api.get("/profile/me/activity");
   return response.data;
 }
 
-// تعديل المسار ليطابق router.put('/me', ...) في الباك إند
+// 3. تحديث البيانات الشخصية (الاسم، البيو، الهاتف، الطول، الوزن)
 export async function updateProfile(data) {
   const response = await api.put("/profile/me", data);
   return response.data;
 }
 
-export async function uploadAvatar(formData) {
-  const response = await api.post("/profile/avatar", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+export async function getProfileById(userId) {
+  const response = await api.get(`/profile/${userId}`);
   return response.data;
 }
 
-export async function uploadCover(formData) {
-  const response = await api.post("/profile/cover", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+// 6. ربط المستخدم بمدرب
+export async function assignCoach(coachId) {
+  const response = await api.put("/profile/assign-coach", { coachId });
   return response.data;
 }
+
+// 7. اختيار الرياضة
+export async function assignSport(sportId) {
+  const response = await api.put("/profile/assign-sport", { sportId });
+  return response.data;
+}
+
