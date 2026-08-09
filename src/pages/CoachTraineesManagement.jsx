@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -17,79 +17,72 @@ import {
 import { useAuth } from "../context/AuthContext";
 
 import {
-  getCoachTrainingRequests,
   acceptTrainingRequest,
   rejectTrainingRequest,
 } from "../services/trainingRequestService";
 
+import { getDashboardTrainingRequests, getMyTrainees } from "../services/dashboardService"; // افترضت أن دالة جلب المتدربين موجودة هنا أو في ملف الـ dashboard
+
 import { createNotification } from "../services/notificationService";
 
-function DashboardAthletes() {
+function CoachTraineesManagement() {
   const navigate = useNavigate();
   const { user } = useAuth();
-
-  const currentCoachId = user?.id || user?.email;
 
   const [search, setSearch] = useState("");
   const [sportFilter, setSportFilter] = useState("All");
   const [selectedAthlete, setSelectedAthlete] = useState(null);
-  const [requests, setRequests] = useState([]);
+  
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [trainees, setTrainees] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // جلب البيانات عند تحميل الصفحة
+  const loadDashboardData = async () => {
+  try {
+    setLoading(true);
+
+    // جلب جميع طلبات التدريب الخاصة بالمدرب من الداشبورد
+    const response = await getDashboardTrainingRequests();
+    const allRequests = response.data || response || [];
+
+    // فلترة الطلبات المعلقة لعرضها في الأعلى
+    const pending = allRequests.filter(req => req.status === "pending");
+
+    setPendingRequests(pending);
+
+    // جلب المتدربين النشطين
+    const traineesData = await getMyTrainees();
+    setTrainees(traineesData.data || traineesData || []);
+  } catch (error) {
+    console.error("Error loading data:", error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
-    const loadRequests = async () => {
-      try {
-        const data = await getCoachTrainingRequests();
-        setRequests(data || []);
-      } catch (error) {
-        console.error(error);
-        setRequests([]);
-      }
-    };
-
-    if (currentCoachId) {
-      loadRequests();
+    if (user) {
+      loadDashboardData();
     }
-  }, [currentCoachId]);
+  }, [user]);
 
-  const coachRequests = useMemo(() => {
-    return requests.filter(
-      (request) =>
-        String(request.coachId || request.coach) === String(currentCoachId) || true
-    );
-  }, [requests, currentCoachId]);
+  // فلترة المتدربين النشطين حسب البحث والرياضة
+  const filteredTrainees = trainees.filter((trainee) => {
+    const traineeName = trainee.name || "";
+    const traineeSport = trainee.sport?.name || "";
 
-  const acceptedAthletes = coachRequests.filter(
-    (request) => request.status === "accepted"
-  );
-
-  const pendingRequests = coachRequests.filter(
-    (request) => request.status === "pending"
-  );
-
-  const filteredAthletes = acceptedAthletes.filter((request) => {
-    const athleteName = request.athlete?.name || request.athleteName || "";
-    const athleteSport = request.sport?.name || request.sport || "";
-
-    const matchesSearch = athleteName
+    const matchesSearch = traineeName
       .toLowerCase()
       .includes(search.toLowerCase());
 
     const matchesSport =
-      sportFilter === "All" || athleteSport === sportFilter;
+      sportFilter === "All" || traineeSport === sportFilter;
 
     return matchesSearch && matchesSport;
   });
 
-  const reloadRequests = async () => {
-    try {
-      const data = await getCoachTrainingRequests();
-      setRequests(data || []);
-    } catch (error) {
-      console.error(error);
-      setRequests([]);
-    }
-  };
-
+  // تحديث حالة الطلب (قبول أو رفض)
   const updateRequestStatus = async (requestId, status, athleteId) => {
     try {
       let updatedRequest;
@@ -101,6 +94,7 @@ function DashboardAthletes() {
 
       if (!updatedRequest) return;
 
+      // إرسال إشعار للمتدرب
       await createNotification({
         type: "training_request_status",
         title:
@@ -112,14 +106,15 @@ function DashboardAthletes() {
             ? `${user?.name || "Coach"} accepted your training request.`
             : `${user?.name || "Coach"} rejected your training request.`,
         userId: athleteId,
-        senderId: currentCoachId,
+        senderId: user?.id || user?._id,
         requestId,
         link: "/coaches",
       });
 
-      await reloadRequests();
+      // إعادة تحميل البيانات لتحديث القوائم فوراً
+      await loadDashboardData();
     } catch (error) {
-      console.error(error);
+      console.error("Error updating request status:", error);
     }
   };
 
@@ -132,23 +127,24 @@ function DashboardAthletes() {
           className="mb-10"
         >
           <span className="bg-red-500/10 text-red-400 px-4 py-2 rounded-full font-semibold">
-            Athletes Dashboard
+            Coach Management
           </span>
 
           <h1 className="text-5xl font-extrabold mt-6 mb-4">
-            Athletes Management
+            Athletes & Requests
           </h1>
 
           <p className="text-slate-400 text-lg">
-            Manage training requests and monitor accepted athletes.
+            Manage incoming training requests and monitor your active trainees.
           </p>
         </motion.div>
 
+        {/* إحصائيات سريعة */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
             <Users className="text-red-400 mb-4" size={28} />
-            <p className="text-slate-400 mb-2">Accepted Athletes</p>
-            <h2 className="text-4xl font-bold">{acceptedAthletes.length}</h2>
+            <p className="text-slate-400 mb-2">Accepted Trainees</p>
+            <h2 className="text-4xl font-bold">{trainees.length}</h2>
           </div>
 
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
@@ -161,11 +157,12 @@ function DashboardAthletes() {
             <Trophy className="text-red-400 mb-4" size={28} />
             <p className="text-slate-400 mb-2">Coach Sport</p>
             <h2 className="text-3xl font-bold">
-              {user?.coachSport || "Sport"}
+              {user?.coachSport || user?.sport?.name || "Sport"}
             </h2>
           </div>
         </section>
 
+        {/* قسم طلبات التدريب المعلقة */}
         <section className="bg-slate-900 border border-slate-800 rounded-3xl p-8 mb-10">
           <h2 className="text-3xl font-bold mb-2">Training Requests</h2>
           <p className="text-slate-400 mb-8">
@@ -180,10 +177,11 @@ function DashboardAthletes() {
             <div className="space-y-5">
               {pendingRequests.map((request) => {
                 const requestId = request.id || request._id;
-                const athleteName = request.athlete?.name || request.athleteName || "Athlete";
-                const athleteEmail = request.athlete?.email || request.athleteEmail || "No email";
-                const sportName = request.sport?.name || request.sport || "Sport";
-                const athleteId = request.athlete?._id || request.athleteId;
+                const athlete = request.athlete || {};
+                const athleteName = athlete.name || "Athlete";
+                const athleteEmail = athlete.email || "No email";
+                const sportName = request.sport?.name || "Sport";
+                const athleteId = athlete._id || athlete.id;
 
                 return (
                   <div
@@ -208,7 +206,7 @@ function DashboardAthletes() {
                           onClick={() =>
                             updateRequestStatus(requestId, "accepted", athleteId)
                           }
-                          className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 rounded-xl flex items-center gap-2"
+                          className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 rounded-xl flex items-center gap-2 transition"
                         >
                           <Check size={18} />
                           Accept
@@ -218,7 +216,7 @@ function DashboardAthletes() {
                           onClick={() =>
                             updateRequestStatus(requestId, "rejected", athleteId)
                           }
-                          className="bg-red-500 hover:bg-red-600 text-white px-5 py-3 rounded-xl flex items-center gap-2"
+                          className="bg-red-500 hover:bg-red-600 text-white px-5 py-3 rounded-xl flex items-center gap-2 transition"
                         >
                           <X size={18} />
                           Reject
@@ -232,12 +230,13 @@ function DashboardAthletes() {
           )}
         </section>
 
+        {/* قسم المتدربين النشطين */}
         <section className="bg-slate-900 border border-slate-800 rounded-3xl p-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 mb-8">
             <div>
-              <h2 className="text-3xl font-bold">Accepted Athletes</h2>
+              <h2 className="text-3xl font-bold">My Trainees</h2>
               <p className="text-slate-400 mt-2">
-                Athletes currently training with you.
+                Athletes currently training under your supervision.
               </p>
             </div>
 
@@ -250,7 +249,7 @@ function DashboardAthletes() {
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search athlete..."
+                  placeholder="Search trainee..."
                   className="bg-slate-800 border border-slate-700 rounded-xl pl-11 pr-4 py-3 outline-none focus:border-red-500"
                 />
               </div>
@@ -271,20 +270,19 @@ function DashboardAthletes() {
           </div>
 
           <div className="space-y-5">
-            {filteredAthletes.length === 0 ? (
+            {filteredTrainees.length === 0 ? (
               <div className="bg-slate-800 border border-slate-700 rounded-2xl p-8 text-center text-slate-400">
-                No accepted athletes yet.
+                No active trainees found.
               </div>
             ) : (
-              filteredAthletes.map((athlete, index) => {
-                const athleteId = athlete.id || athlete._id;
-                const name = athlete.athlete?.name || athlete.athleteName;
-                const sport = athlete.sport?.name || athlete.sport;
-                const targetId = athlete.athlete?._id || athlete.athleteId;
+              filteredTrainees.map((trainee, index) => {
+                const traineeId = trainee.id || trainee._id;
+                const name = trainee.name;
+                const sportName = trainee.sport?.name || "General Sport";
 
                 return (
                   <motion.div
-                    key={athleteId}
+                    key={traineeId}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.08 }}
@@ -294,7 +292,7 @@ function DashboardAthletes() {
                       <div>
                         <h3 className="text-2xl font-bold">{name}</h3>
                         <p className="text-slate-400 mt-2">
-                          {sport} • Accepted Athlete
+                          {sportName} • Level {trainee.level || 1} • XP: {trainee.xp || 0}
                         </p>
                       </div>
 
@@ -305,7 +303,7 @@ function DashboardAthletes() {
 
                         <button
                           type="button"
-                          onClick={() => setSelectedAthlete(athlete)}
+                          onClick={() => setSelectedAthlete(trainee)}
                           className="w-10 h-10 rounded-xl border border-slate-600 flex items-center justify-center hover:border-red-500 transition"
                         >
                           <Eye size={18} />
@@ -313,7 +311,7 @@ function DashboardAthletes() {
 
                         <button
                           type="button"
-                          onClick={() => navigate(`/messages/${targetId}`)}
+                          onClick={() => navigate(`/messages/${traineeId}`)}
                           className="w-10 h-10 rounded-xl border border-slate-600 flex items-center justify-center hover:border-blue-500 transition"
                         >
                           <MessageCircle size={18} />
@@ -328,6 +326,7 @@ function DashboardAthletes() {
         </section>
       </main>
 
+      {/* مودال تفاصيل المتدرب */}
       {selectedAthlete && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center px-6 z-50">
           <motion.div
@@ -337,12 +336,12 @@ function DashboardAthletes() {
           >
             <div className="flex items-start justify-between gap-6 mb-6">
               <div>
-                <span className="text-red-400 font-semibold">Athlete Profile</span>
+                <span className="text-red-400 font-semibold">Trainee Profile</span>
                 <h2 className="text-4xl font-bold mt-3">
-                  {selectedAthlete.athlete?.name || selectedAthlete.athleteName || "Athlete"}
+                  {selectedAthlete.name}
                 </h2>
                 <p className="text-slate-400 mt-2">
-                  {selectedAthlete.athlete?.email || selectedAthlete.athleteEmail || "No email"}
+                  {selectedAthlete.email || "No email"}
                 </p>
               </div>
 
@@ -358,21 +357,23 @@ function DashboardAthletes() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
               <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
                 <Activity className="text-red-400 mb-3" size={24} />
-                <p className="text-slate-400 text-sm">Status</p>
-                <h3 className="text-xl font-bold mt-1">Accepted</h3>
+                <p className="text-slate-400 text-sm">Level & XP</p>
+                <h3 className="text-xl font-bold mt-1">
+                  Lvl {selectedAthlete.level || 1} ({selectedAthlete.xp || 0} XP)
+                </h3>
               </div>
 
               <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
                 <Trophy className="text-red-400 mb-3" size={24} />
                 <p className="text-slate-400 text-sm">Sport</p>
                 <h3 className="text-xl font-bold mt-1">
-                  {selectedAthlete.sport?.name || selectedAthlete.sport || "Sport"}
+                  {selectedAthlete.sport?.name || "Sport"}
                 </h3>
               </div>
 
               <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
                 <Calendar className="text-red-400 mb-3" size={24} />
-                <p className="text-slate-400 text-sm">Requested</p>
+                <p className="text-slate-400 text-sm">Joined At</p>
                 <h3 className="text-sm font-bold mt-1">
                   {selectedAthlete.createdAt
                     ? new Date(selectedAthlete.createdAt).toLocaleDateString()
@@ -385,12 +386,14 @@ function DashboardAthletes() {
               <button
                 type="button"
                 onClick={() =>
-                  navigate(`/messages/${selectedAthlete.athlete?._id || selectedAthlete.athleteId}`)
+                  navigate(
+                    `/messages/${selectedAthlete.id || selectedAthlete._id}`
+                  )
                 }
                 className="w-full bg-blue-500 hover:bg-blue-600 py-4 rounded-xl font-semibold transition flex items-center justify-center gap-2"
               >
                 <MessageCircle size={18} />
-                Message Athlete
+                Message Trainee
               </button>
 
               <button
@@ -408,4 +411,4 @@ function DashboardAthletes() {
   );
 }
 
-export default DashboardAthletes;
+export default CoachTraineesManagement;

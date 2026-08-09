@@ -24,11 +24,11 @@ import AiTrainer from "./pages/AITrainer";
 import AdminPanel from "./pages/AdminPanel";
 
 // Coach Dashboard Pages
-import Dashboard from "./pages/Dashboard";
-import DashboardAthletes from "./pages/DashboardAthletes";
+import CoachDashboardOverview from "./pages/CoachDashboardOverview";
 import DashboardAiPlans from "./pages/DashboardAiPlans";
 import DashboardProgressReviews from "./pages/DashboardProgressReviews";
 import CoachChats from "./pages/CoachChats";
+import CoachTraineesManagement from "./pages/CoachTraineesManagement";
 
 function App() {
   return (
@@ -109,8 +109,8 @@ function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/dashboard/athletes" element={<DashboardAthletes />} />
+        <Route path="/dashboard" element={<CoachDashboardOverview />} />
+        <Route path="/dashboard/athletes" element={<CoachTraineesManagement />} />
         <Route path="/dashboard/pending-ai-plans" element={<DashboardAiPlans />} />
         <Route path="/dashboard/progress-reviews" element={<DashboardProgressReviews />} />
         <Route path="/dashboard/chats" element={<CoachChats />} />

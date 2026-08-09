@@ -6,13 +6,14 @@ import {
   Eye,
   MessageSquare,
   XCircle,
+  Trash2, // استيراد أيقونة الحذف
 } from "lucide-react";
 
 import {
-  getProgressReviewRequests,
-  approveProgressReview,
-  rejectProgressReview,
-} from "../services/trainingProgressService";
+  getMyProgress,
+  addProgress,
+  deleteProgress, // استيراد دالة الحذف
+} from "../services/progressService";
 
 function DashboardProgressReviews() {
   const [requests, setRequests] = useState([]);
@@ -25,17 +26,20 @@ function DashboardProgressReviews() {
 
   const loadRequests = async () => {
     try {
-      const data = await getProgressReviewRequests();
-      setRequests(data || []);
+      const data = await getMyProgress();
+      const requestsArray = Array.isArray(data) ? data : data?.data || [];
+      setRequests(requestsArray);
     } catch (error) {
-      console.error(error);
+      console.error("Error loading progress requests:", error);
       setRequests([]);
     }
   };
 
   const approveRequest = async (requestId) => {
     try {
-      await approveProgressReview(requestId, {
+      await addProgress({
+        progressId: requestId,
+        status: "approved",
         coachNote,
       });
 
@@ -43,13 +47,15 @@ function DashboardProgressReviews() {
       setSelectedRequest(null);
       setCoachNote("");
     } catch (error) {
-      console.error(error);
+      console.error("Error approving request:", error);
     }
   };
 
   const rejectRequest = async (requestId) => {
     try {
-      await rejectProgressReview(requestId, {
+      await addProgress({
+        progressId: requestId,
+        status: "rejected",
         coachNote,
       });
 
@@ -57,7 +63,23 @@ function DashboardProgressReviews() {
       setSelectedRequest(null);
       setCoachNote("");
     } catch (error) {
-      console.error(error);
+      console.error("Error rejecting request:", error);
+    }
+  };
+
+  // دالة الحذف الجديدة
+  const handleDeleteRequest = async (requestId) => {
+    if (!window.confirm("Are you sure you want to delete this progress request?")) return;
+    try {
+      await deleteProgress(requestId);
+      await loadRequests();
+      // إذا كان العنصر المحذوف مفتوحاً حالياً في الـ Modal، نقوم بإغلاقه
+      if (selectedRequest && (selectedRequest.id === requestId || selectedRequest._id === requestId)) {
+        setSelectedRequest(null);
+        setCoachNote("");
+      }
+    } catch (error) {
+      console.error("Error deleting request:", error);
     }
   };
 
@@ -164,7 +186,7 @@ function DashboardProgressReviews() {
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-3 items-center">
                     <button
                       type="button"
                       onClick={() => {
@@ -187,8 +209,18 @@ function DashboardProgressReviews() {
                           : "bg-yellow-500/10 text-yellow-400")
                       }
                     >
-                      {request.status}
+                      {request.status || "pending"}
                     </span>
+
+                    {/* زر الحذف السريع ضمن القائمة */}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteRequest(requestId)}
+                      className="p-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl transition"
+                      title="Delete Request"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </div>
                 </div>
               </motion.div>
@@ -254,16 +286,27 @@ function DashboardProgressReviews() {
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedRequest(null);
-                setCoachNote("");
-              }}
-              className="mt-4 w-full bg-slate-700 hover:bg-slate-600 py-4 rounded-xl font-semibold transition"
-            >
-              Close
-            </button>
+            <div className="flex gap-4 mt-4">
+              <button
+                type="button"
+                onClick={() => handleDeleteRequest(selectedRequest.id || selectedRequest._id)}
+                className="bg-red-500/10 hover:bg-red-500/20 text-red-400 py-4 px-6 rounded-xl font-semibold transition flex items-center justify-center gap-2"
+              >
+                <Trash2 size={18} />
+                Delete
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedRequest(null);
+                  setCoachNote("");
+                }}
+                className="flex-1 bg-slate-700 hover:bg-slate-600 py-4 rounded-xl font-semibold transition"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

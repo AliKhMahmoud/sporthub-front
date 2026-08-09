@@ -23,3 +23,9 @@ export async function deleteProgress(progressId) {
   const response = await api.delete(`/progress/${progressId}`);
   return response.data;
 }
+
+// جلب سجلات تقدم متدرب معين (خاص بالمدرب)
+export async function getTraineeProgress(traineeId) {
+  const response = await api.get(`/progress/trainee/${traineeId}`);
+  return response.data;
+}

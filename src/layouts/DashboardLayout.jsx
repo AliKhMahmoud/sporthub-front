@@ -22,12 +22,12 @@ function DashboardLayout() {
     },
     {
       label: "My Trainees",
-      path: "/dashboard/athletes",
+      path: "/dashboard/trainees", // تعديل المسار ليتطابق مع الخدمة
       icon: Users,
     },
     {
-      label: "Progress Reviews",
-      path: "/dashboard/progress-reviews",
+      label: "Training Requests",
+      path: "/dashboard/requests", // إضافة تبويب الطلبات (قبول ورفض المتدربين)
       icon: ClipboardList,
     },
     {

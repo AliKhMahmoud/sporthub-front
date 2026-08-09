@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { getCoachDashboardOverview } from "../services/dashboardService"; // تأكد من اسم ومسار ملف الـ service لديك
 
-function Dashboard() {
+function CoachDashboardOverview() {
   const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -172,13 +172,13 @@ function Dashboard() {
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-semibold ${
                           req.status === "pending"
-                            ? "bg-yellow-500/10 text-yellow-400"
+                            ? "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 animate-pulse" // أضفنا border و animate-pulse
                             : req.status === "accepted"
                             ? "bg-emerald-500/10 text-emerald-400"
                             : "bg-red-500/10 text-red-400"
                         }`}
                       >
-                        {req.status}
+                        {req.status === "pending" ? "Action Required" : req.status}
                       </span>
                     </div>
                   ))
@@ -250,4 +250,4 @@ function Dashboard() {
   );
 }
 
-export default Dashboard;
+export default CoachDashboardOverview;
