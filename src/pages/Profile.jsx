@@ -10,7 +10,7 @@ import {
   getProfile,
   updateProfile,
 } from "../services/profileService";
-import { getMyStats, getMyProgress, createProgress } from "../services/progressService";
+import { getMyStats, getMyProgress, addProgress } from "../services/progressService";
 
 import { useAuth } from "../context/AuthContext";
 import Button from "../components/ui/Button";
@@ -240,7 +240,7 @@ function Profile() {
   const handleSaveProgress = async (event) => {
     event.preventDefault();
     try {
-      const res = await createProgress(progressForm);
+      const res = await addProgress(progressForm);
       if (res?.success || res) {
         setIsAddProgressOpen(false);
         setProgressForm({ sport: "", metric: "weight", value: "", note: "" });
