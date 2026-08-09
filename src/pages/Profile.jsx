@@ -9,6 +9,8 @@ import { motion } from "framer-motion";
 import {
   getProfile,
   updateProfile,
+  uploadAvatar,
+  uploadCover,
 } from "../services/profileService";
 import { getMyProgress, getMyProgressStats, addProgress } from "../services/progressService";
 import statService from "../services/statService";
@@ -71,9 +73,6 @@ function Profile() {
     coachSport: user?.coachSport || "Fitness",
   });
 
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [coverFile, setCoverFile] = useState(null);
-
   const [avatarPreview, setAvatarPreview] = useState(
     user?.avatar || "https://i.pravatar.cc/150"
   );
@@ -119,7 +118,6 @@ function Profile() {
         // ─── جلب الإحصائيات الأساسية ───────────────────────────────
         try {
           const statsRes = await statService.getMyStats();
-          // statService يرجع البيانات مباشرة
           if (statsRes) {
             setProfileStats({
               forumPosts: statsRes.totalPosts || 0,
@@ -147,7 +145,6 @@ function Profile() {
         // ─── جلب سجلات التقدم ───────────────────────────────────
         try {
           const progressRes = await getMyProgress();
-          // progressService يرجع { success, status, message, data }
           const progressData = progressRes?.data || [];
           setProgressHistory(Array.isArray(progressData) ? progressData : []);
         } catch (progError) {
@@ -157,7 +154,6 @@ function Profile() {
         // ─── جلب إحصائيات التقدم (Latest, Best, Average) ──────────
         try {
           const progressStatsRes = await getMyProgressStats();
-          // هذا يرجع array من الـ metrics بـ latest, best, average
           const statsData = progressStatsRes?.data || [];
           setProgressStats(Array.isArray(statsData) ? statsData : []);
         } catch (statsError) {
@@ -197,18 +193,33 @@ function Profile() {
     });
   };
 
-  const handleFileChange = (event, type) => {
+  const handleFileChange = async (event, type) => {
     const file = event.target.files[0];
     if (!file) return;
 
     const previewUrl = URL.createObjectURL(file);
 
     if (type === "avatar") {
-      setAvatarFile(file);
       setAvatarPreview(previewUrl);
     } else if (type === "cover") {
-      setCoverFile(file);
       setCoverPreview(previewUrl);
+    }
+
+    // رفع الصورة مباشرة باستخدام الدوال المنفصلة uploadAvatar أو uploadCover
+    try {
+      let result;
+      if (type === "avatar") {
+        result = await uploadAvatar(file);
+      } else if (type === "cover") {
+        result = await uploadCover(file);
+      }
+
+      const updatedUser = result.data || result.user || result;
+      if (updatedUser) {
+        login(updatedUser);
+      }
+    } catch (error) {
+      console.error(`Error uploading ${type}:`, error);
     }
   };
 
@@ -216,29 +227,24 @@ function Profile() {
     event.preventDefault();
 
     try {
-      const dataToSend = new FormData();
-      dataToSend.append("name", formData.name);
-      dataToSend.append("about", formData.about);
-      dataToSend.append("phone", formData.phone);
-      dataToSend.append("height", formData.height);
-      dataToSend.append("weight", formData.weight);
+      const dataToSend = {
+        name: formData.name,
+        about: formData.about,
+        phone: formData.phone,
+        height: formData.height,
+        weight: formData.weight,
+      };
 
       if (isCoach) {
-        dataToSend.append("coachSport", formData.coachSport);
-      }
-
-      if (avatarFile) {
-        dataToSend.append("avatar", avatarFile);
-      }
-
-      if (coverFile) {
-        dataToSend.append("cover", coverFile);
+        dataToSend.coachSport = formData.coachSport;
       }
       
       const result = await updateProfile(dataToSend);
       const updatedUser = result.data || result.user || result;
       
-      login(updatedUser);
+      if (updatedUser) {
+        login(updatedUser);
+      }
       setIsEditOpen(false);
     } catch (error) {
       console.error("Error saving profile:", error);
@@ -490,44 +496,6 @@ function Profile() {
                 onChange={handleChange}
                 placeholder="Weight (kg)"
               />
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Avatar Image
-                </label>
-                <div className="flex items-center gap-4">
-                  <img
-                    src={avatarPreview}
-                    alt="avatar preview"
-                    className="w-12 h-12 rounded-full object-cover border"
-                  />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileChange(e, "avatar")}
-                    className="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-red-500 file:text-white hover:file:bg-red-600 cursor-pointer"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Cover Image
-                </label>
-                <div className="flex items-center gap-4">
-                  <img
-                    src={coverPreview}
-                    alt="cover preview"
-                    className="w-16 h-10 rounded-lg object-cover border"
-                  />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileChange(e, "cover")}
-                    className="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-red-500 file:text-white hover:file:bg-red-600 cursor-pointer"
-                  />
-                </div>
-              </div>
 
               {isCoach && (
                 <select

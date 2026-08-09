@@ -28,4 +28,6 @@ export async function uploadCover(file) {
   });
 
   return response.data;
+
+  
 }
