@@ -109,11 +109,11 @@ function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/dashboard" element={<CoachDashboardOverview />} />
-        <Route path="/dashboard/athletes" element={<CoachTraineesManagement />} />
-        <Route path="/dashboard/pending-ai-plans" element={<DashboardAiPlans />} />
-        <Route path="/dashboard/progress-reviews" element={<DashboardProgressReviews />} />
-        <Route path="/dashboard/chats" element={<CoachChats />} />
+        <Route path="/dashboard/coach" element={<CoachDashboardOverview />} />
+        <Route path="/dashboard/coach/trainees" element={<CoachTraineesManagement />} />
+        <Route path="/dashboard/coach/progress-reviews" element={<DashboardProgressReviews />} />
+        <Route path="/dashboard/coach/ai-plans" element={<DashboardAiPlans />} />
+        <Route path="/dashboard/coach/chats" element={<CoachChats />} />
       </Route>
     </Routes>
   );

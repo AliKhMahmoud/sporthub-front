@@ -7,6 +7,7 @@ import {
   Users,
   ClipboardList,
   Plus,
+  CheckCircle,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -17,27 +18,27 @@ function DashboardLayout() {
   const links = [
     {
       label: "Overview",
-      path: "/dashboard",
+      path: "/dashboard/coach",
       icon: LayoutDashboard,
     },
     {
       label: "My Trainees",
-      path: "/dashboard/trainees", // تعديل المسار ليتطابق مع الخدمة
+      path: "/dashboard/coach/trainees",
       icon: Users,
     },
     {
-      label: "Training Requests",
-      path: "/dashboard/requests", // إضافة تبويب الطلبات (قبول ورفض المتدربين)
-      icon: ClipboardList,
-    },
-    {
       label: "Pending AI Plans",
-      path: "/dashboard/pending-ai-plans",
+      path: "/dashboard/coach/pending-ai-plans",
       icon: Plus,
     },
     {
+      label: "Progress Reviews", // اسم الرابط في القائمة
+      path: "/dashboard/coach/progress-reviews", // المسار الخاص بصفحة المراجعات
+      icon: CheckCircle, // أو أي أيقونة مناسبة مثل Clock أو Activity
+    },
+    {
       label: "Chats",
-      path: "/dashboard/chats",
+      path: "/dashboard/coach/chats",
       icon: Bot,
     },
   ];
