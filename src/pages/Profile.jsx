@@ -17,17 +17,8 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import { getAllSports } from "../services/sportsService";
 
-const sportsOptions = [
-  "Fitness",
-  "Boxing",
-  "Bodybuilding",
-  "Karate",
-  "Taekwondo",
-];
-
 function Profile() {
   const { user, login } = useAuth();
-
   const isAthlete = user?.role === "athlete";
   const isCoach = user?.role === "coach";
 
@@ -39,7 +30,7 @@ function Profile() {
   const [aiPlans, setAiPlans] = useState([]);
   const [normalWorkouts, setNormalWorkouts] = useState([]);
   
-  // حالات جديدة خاصة بالـ Progress والإحصائيات الحقيقية
+  // حالات الـ Progress والإحصائيات والرياضات
   const [progressStats, setProgressStats] = useState([]);
   const [progressHistory, setProgressHistory] = useState([]);
   const [availableSports, setAvailableSports] = useState([]);
@@ -107,7 +98,15 @@ function Profile() {
       setNormalWorkouts(data?.workouts || []);
       setProfileStats(data?.stats || {});
 
-      // جلب الإحصائيات الحقيقية والـ Progress من الـ Backend
+      // جلب الرياضات دائماً لأن المدرب قد يحتاجها أيضاً في تعديل الرياضة الخاصة به
+      try {
+        const sportsRes = await getAllSports();
+        setAvailableSports(Array.isArray(sportsRes) ? sportsRes : (sportsRes?.data || []));
+      } catch (e) {
+        console.error("Error loading sports:", e);
+      }
+
+      // جلب الإحصائيات الحقيقية والـ Progress من الـ Backend للأتليت
       if (isAthlete) {
         const statsRes = await getMyStats();
         if (statsRes?.success) {
@@ -117,15 +116,6 @@ function Profile() {
         const progressRes = await getMyProgress();
         if (progressRes?.success) {
           setProgressHistory(progressRes.data || []);
-        }
-
-        try {
-          const sportsRes = await getAllSports();
-          if (sportsRes) {
-            setAvailableSports(sportsRes.data || sportsRes);
-          }
-        } catch (e) {
-          console.error("Error loading sports:", e);
         }
       }
     } catch (error) {
@@ -236,7 +226,6 @@ function Profile() {
     }
   };
 
-  // حفظ الـ Progress الجديد
   const handleSaveProgress = async (event) => {
     event.preventDefault();
     try {
@@ -244,7 +233,7 @@ function Profile() {
       if (res?.success || res) {
         setIsAddProgressOpen(false);
         setProgressForm({ sport: "", metric: "weight", value: "", note: "" });
-        loadProfileData(); // إعادة تحديث الإحصائيات
+        loadProfileData();
       }
     } catch (error) {
       console.error("Error creating progress:", error);
@@ -371,7 +360,6 @@ function Profile() {
                 </p>
               </div>
 
-              {/* قسم عرض الإحصائيات الفعلية المسترجعة مع زر إضافة قياس جديد */}
               <div className="mt-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-bold text-slate-950 dark:text-white">
@@ -520,9 +508,9 @@ function Profile() {
                   onChange={handleChange}
                   className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-slate-900 dark:text-white"
                 >
-                  {sportsOptions.map((sport) => (
-                    <option key={sport} value={sport}>
-                      {sport}
+                  {availableSports.map((sport) => (
+                    <option key={sport._id} value={sport.name}>
+                      {sport.name}
                     </option>
                   ))}
                 </select>
