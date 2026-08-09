@@ -10,7 +10,8 @@ import {
   getProfile,
   updateProfile,
 } from "../services/profileService";
-import { getMyStats, getMyProgress, addProgress } from "../services/progressService";
+import { getMyProgress, addProgress } from "../services/progressService";
+import statService from "../services/statService";
 
 import { useAuth } from "../context/AuthContext";
 import Button from "../components/ui/Button";
@@ -108,14 +109,18 @@ function Profile() {
 
       // جلب الإحصائيات الحقيقية والـ Progress من الـ Backend للأتليت
       if (isAthlete) {
-        const statsRes = await getMyStats();
-        if (statsRes?.success) {
-          setProgressStats(statsRes.data || []);
+        try {
+          const statsRes = await statService.getMyStats();
+          // التعامل مع الاستجابة سواء كانت مباشرة مصفوفة أو داخل data
+          const statsData = Array.isArray(statsRes) ? statsRes : (statsRes?.data || statsRes?.stats || []);
+          setProgressStats(statsData);
+        } catch (statsError) {
+          console.error("Error loading athlete stats:", statsError);
         }
 
         const progressRes = await getMyProgress();
-        if (progressRes?.success) {
-          setProgressHistory(progressRes.data || []);
+        if (progressRes?.success || progressRes) {
+          setProgressHistory(progressRes.data || progressRes || []);
         }
       }
     } catch (error) {
@@ -230,7 +235,7 @@ function Profile() {
     event.preventDefault();
     try {
       const payload = {
-        sportId: progressForm.sport, // تم التعديل هنا لتتوافق مع الباك إند (sportId)
+        sportId: progressForm.sport,
         metric: progressForm.metric,
         value: Number(progressForm.value),
         note: progressForm.note,
@@ -386,11 +391,11 @@ function Profile() {
                   {progressStats.length > 0 ? (
                     progressStats.map((stat) => (
                       <div
-                        key={stat._id}
+                        key={stat._id || stat.id}
                         className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl"
                       >
                         <p className="text-slate-500 dark:text-slate-400 uppercase text-xs font-bold tracking-wider">
-                          Metric: {stat._id}
+                          Metric: {stat._id || stat.metric}
                         </p>
                         <div className="mt-2 flex items-baseline justify-between">
                           <div>

@@ -3,12 +3,14 @@ import api from "./api";
 export async function uploadAvatar(file) {
   const formData = new FormData();
 
-  formData.append("avatar", file);
+  // يجب أن يكون الاسم 'image' ليطابق wrapSingle('image') في الباك إند
+  formData.append("image", file); 
 
-  const response = await api.post(
-    "/upload/avatar",
-    formData
-  );
+  const response = await api.post("/upload/avatar", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
 
   return response.data;
 }
@@ -16,12 +18,14 @@ export async function uploadAvatar(file) {
 export async function uploadCover(file) {
   const formData = new FormData();
 
-  formData.append("cover", file);
+  // يجب أن يكون الاسم 'image' ليطابق wrapSingle('image') في الباك إند
+  formData.append("image", file);
 
-  const response = await api.post(
-    "/upload/cover",
-    formData
-  );
+  const response = await api.post("/upload/cover", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
 
   return response.data;
 }
