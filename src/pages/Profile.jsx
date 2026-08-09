@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Zap, Plus } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import { Zap, Plus, Camera } from "lucide-react";
 import { motion } from "framer-motion";
 
 import {
@@ -17,11 +17,16 @@ import { useAuth } from "../context/AuthContext";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import { getAllSports } from "../services/sportsService";
+import { uploadAvatar, uploadCover } from "../services/uploadService";
+
 
 function Profile() {
   const { user, login } = useAuth();
   const isAthlete = user?.role === "athlete";
   const isCoach = user?.role === "coach";
+
+  const avatarInputRef = useRef(null);
+  const coverInputRef = useRef(null);
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isAddProgressOpen, setIsAddProgressOpen] = useState(false);
@@ -30,6 +35,10 @@ function Profile() {
   const [progressStats, setProgressStats] = useState([]);
   const [progressHistory, setProgressHistory] = useState([]);
   const [availableSports, setAvailableSports] = useState([]);
+
+  // حالات التحميل عند رفع الصور
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   // حالة فورم إضافة Progress جديد
   const [progressForm, setProgressForm] = useState({
@@ -132,6 +141,46 @@ function Profile() {
     }
   }, [user]);
 
+  // معالجة تغيير الأفاتار
+  const handleAvatarChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingAvatar(true);
+      const res = await uploadAvatar(file);
+      const updatedUser = res?.data || res;
+      if (updatedUser) {
+        login(updatedUser);
+      }
+      await loadProfileData();
+    } catch (error) {
+      console.error("Error uploading avatar:", error);
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  // معالجة تغيير الغلاف
+  const handleCoverChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingCover(true);
+      const res = await uploadCover(file);
+      const updatedUser = res?.data || res;
+      if (updatedUser) {
+        login(updatedUser);
+      }
+      await loadProfileData();
+    } catch (error) {
+      console.error("Error uploading cover:", error);
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
   const trainingSports = [
     ...new Set(
       progressHistory
@@ -226,30 +275,68 @@ function Profile() {
 
   return (
     <main className="max-w-7xl mx-auto px-6 py-12">
+      {/* مدخلات ملفات مخفية للرفع */}
+      <input
+        type="file"
+        ref={avatarInputRef}
+        onChange={handleAvatarChange}
+        accept="image/*"
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={coverInputRef}
+        onChange={handleCoverChange}
+        accept="image/*"
+        className="hidden"
+      />
+
       <motion.section
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm dark:shadow-none"
       >
         {/* الغلاف (Cover Image) */}
-        <div className="h-72 overflow-hidden relative">
+        <div className="h-72 overflow-hidden relative group">
           <img
             src={coverUrl}
             alt="cover"
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+          
+          {/* زر تغيير الصورة على الغلاف */}
+          <button
+            type="button"
+            onClick={() => coverInputRef.current?.click()}
+            disabled={uploadingCover}
+            className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white p-2.5 rounded-full backdrop-blur-md transition-all flex items-center gap-2 text-sm font-medium"
+          >
+            <Camera size={18} />
+            <span className="hidden sm:inline">
+              {uploadingCover ? "Uploading..." : "Change Cover"}
+            </span>
+          </button>
         </div>
 
         <div className="px-8 pb-10 relative">
           {/* الصورة الشخصية (Avatar) */}
           <div className="absolute -top-20">
-            <div className="relative w-40 h-40">
+            <div className="relative w-40 h-40 group">
               <img
                 src={avatarUrl}
                 alt={profileData?.name || "profile"}
                 className="w-40 h-40 rounded-full border-4 border-white dark:border-slate-950 object-cover shadow-xl"
               />
+              {/* زر تغيير الأفاتار فوق الصورة */}
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
+              >
+                <Camera size={28} />
+              </button>
             </div>
           </div>
 
