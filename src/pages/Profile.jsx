@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Camera,
   Zap,
+  Plus,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -9,11 +10,12 @@ import {
   getProfile,
   updateProfile,
 } from "../services/profileService";
-import { getMyStats, getMyProgress } from "../services/progressService";
+import { getMyStats, getMyProgress, createProgress } from "../services/progressService";
 
 import { useAuth } from "../context/AuthContext";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
+import { getAllSports } from "../services/sportsService";
 
 const sportsOptions = [
   "Fitness",
@@ -30,6 +32,7 @@ function Profile() {
   const isCoach = user?.role === "coach";
 
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isAddProgressOpen, setIsAddProgressOpen] = useState(false);
 
   const [profilePosts, setProfilePosts] = useState([]);
   const [accountActivity, setAccountActivity] = useState([]);
@@ -39,6 +42,15 @@ function Profile() {
   // حالات جديدة خاصة بالـ Progress والإحصائيات الحقيقية
   const [progressStats, setProgressStats] = useState([]);
   const [progressHistory, setProgressHistory] = useState([]);
+  const [availableSports, setAvailableSports] = useState([]);
+
+  // حالة فورم إضافة Progress جديد
+  const [progressForm, setProgressForm] = useState({
+    sport: "",
+    metric: "weight",
+    value: "",
+    note: "",
+  });
 
   const [profileStats, setProfileStats] = useState({
     forumPosts: 0,
@@ -70,53 +82,61 @@ function Profile() {
       "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1600&auto=format&fit=crop"
   );
 
-  useEffect(() => {
-    const loadProfileData = async () => {
-      try {
-        const data = await getProfile();
-        const profileUser = data?.user || user;
+  const loadProfileData = async () => {
+    try {
+      const data = await getProfile();
+      const profileUser = data?.user || user;
 
-        if (profileUser) {
-          setFormData({
-            name: profileUser.name || "",
-            about: profileUser.bio || profileUser.about || "",
-            phone: profileUser.phone || "",
-            height: profileUser.height || "",
-            weight: profileUser.weight || "",
-            coachSport: profileUser.coachSport || "Fitness",
-          });
+      if (profileUser) {
+        setFormData({
+          name: profileUser.name || "",
+          about: profileUser.bio || profileUser.about || "",
+          phone: profileUser.phone || "",
+          height: profileUser.height || "",
+          weight: profileUser.weight || "",
+          coachSport: profileUser.coachSport || "Fitness",
+        });
 
-          if (profileUser.avatar) setAvatarPreview(profileUser.avatar);
-          if (profileUser.cover) setCoverPreview(profileUser.cover);
-        }
-
-        setProfilePosts(data?.posts || []);
-        setAccountActivity(data?.notifications || []);
-        setAiPlans(data?.aiPlans || []);
-        setNormalWorkouts(data?.workouts || []);
-        setProfileStats(data?.stats || {});
-
-        // جلب الإحصائيات الحقيقية والـ Progress من الـ Backend
-        if (isAthlete) {
-          const statsRes = await getMyStats();
-          if (statsRes?.success) {
-            setProgressStats(statsRes.data || []);
-          }
-
-          const progressRes = await getMyProgress();
-          if (progressRes?.success) {
-            setProgressHistory(progressRes.data || []);
-          }
-        }
-      } catch (error) {
-        console.error("Error loading profile details:", error);
+        if (profileUser.avatar) setAvatarPreview(profileUser.avatar);
+        if (profileUser.cover) setCoverPreview(profileUser.cover);
       }
-    };
 
+      setProfilePosts(data?.posts || []);
+      setAccountActivity(data?.notifications || []);
+      setAiPlans(data?.aiPlans || []);
+      setNormalWorkouts(data?.workouts || []);
+      setProfileStats(data?.stats || {});
+
+      // جلب الإحصائيات الحقيقية والـ Progress من الـ Backend
+      if (isAthlete) {
+        const statsRes = await getMyStats();
+        if (statsRes?.success) {
+          setProgressStats(statsRes.data || []);
+        }
+
+        const progressRes = await getMyProgress();
+        if (progressRes?.success) {
+          setProgressHistory(progressRes.data || []);
+        }
+
+        try {
+          const sportsRes = await getAllSports();
+          if (sportsRes) {
+            setAvailableSports(sportsRes.data || sportsRes);
+          }
+        } catch (e) {
+          console.error("Error loading sports:", e);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading profile details:", error);
+    }
+  };
+
+  useEffect(() => {
     loadProfileData();
   }, [user, isAthlete]);
 
-  const userPosts = profilePosts;
   const receivedLikes = profileStats.likesReceived || 0;
   const receivedComments = profileStats.commentsReceived || 0;
 
@@ -129,9 +149,7 @@ function Profile() {
   ];
 
   const totalPlans = aiPlans.length + normalWorkouts.length;
-  const completedPlans = aiPlans.length; // يمكن تعديلها حسب الحاجة الفعلية للـ Plans
-
-  const averageProgress = profileStats.averageProgress || 0;
+  const completedPlans = aiPlans.length;
 
   const xp =
     totalPlans * 20 +
@@ -158,6 +176,14 @@ function Profile() {
     const { name, value } = event.target;
     setFormData({
       ...formData,
+      [name]: value,
+    });
+  };
+
+  const handleProgressChange = (event) => {
+    const { name, value } = event.target;
+    setProgressForm({
+      ...progressForm,
       [name]: value,
     });
   };
@@ -207,6 +233,21 @@ function Profile() {
       setIsEditOpen(false);
     } catch (error) {
       console.error("Error saving profile:", error);
+    }
+  };
+
+  // حفظ الـ Progress الجديد
+  const handleSaveProgress = async (event) => {
+    event.preventDefault();
+    try {
+      const res = await createProgress(progressForm);
+      if (res?.success || res) {
+        setIsAddProgressOpen(false);
+        setProgressForm({ sport: "", metric: "weight", value: "", note: "" });
+        loadProfileData(); // إعادة تحديث الإحصائيات
+      }
+    } catch (error) {
+      console.error("Error creating progress:", error);
     }
   };
 
@@ -330,11 +371,20 @@ function Profile() {
                 </p>
               </div>
 
-              {/* قسم عرض الإحصائيات الفعلية المسترجعة من الـ Progress API */}
+              {/* قسم عرض الإحصائيات الفعلية المسترجعة مع زر إضافة قياس جديد */}
               <div className="mt-6">
-                <h3 className="text-xl font-bold text-slate-950 dark:text-white mb-4">
-                  Performance Metrics & Stats
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-bold text-slate-950 dark:text-white">
+                    Performance Metrics & Stats
+                  </h3>
+                  <Button
+                    onClick={() => setIsAddProgressOpen(true)}
+                    className="flex items-center gap-2 text-sm py-2 px-4"
+                  >
+                    <Plus size={16} /> Add Progress
+                  </Button>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                   {progressStats.length > 0 ? (
                     progressStats.map((stat) => (
@@ -366,7 +416,7 @@ function Profile() {
                     ))
                   ) : (
                     <p className="text-slate-500 dark:text-slate-400 col-span-3 text-center py-4">
-                      No progress metrics recorded yet by your coach.
+                      No progress metrics recorded yet. Start adding your progress!
                     </p>
                   )}
                 </div>
@@ -487,6 +537,99 @@ function Profile() {
                   variant="outline"
                   className="flex-1"
                   onClick={() => setIsEditOpen(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* نافذة إضافة قياس تقدم جديد (Add Progress Modal) */}
+      {isAddProgressOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center px-6 z-50">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 w-full max-w-md">
+            <h2 className="text-2xl font-bold mb-6 text-slate-950 dark:text-white">
+              Add New Progress
+            </h2>
+
+            <form onSubmit={handleSaveProgress} className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-1">
+                  Sport
+                </label>
+                <select
+                  name="sport"
+                  value={progressForm.sport}
+                  onChange={handleProgressChange}
+                  required
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-slate-900 dark:text-white"
+                >
+                  <option value="">Select Sport</option>
+                  {availableSports.map((s) => (
+                    <option key={s._id} value={s._id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-1">
+                  Metric Type
+                </label>
+                <select
+                  name="metric"
+                  value={progressForm.metric}
+                  onChange={handleProgressChange}
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-slate-900 dark:text-white"
+                >
+                  <option value="weight">Weight (kg)</option>
+                  <option value="reps">Reps</option>
+                  <option value="time">Time (min/sec)</option>
+                  <option value="distance">Distance (km/m)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-1">
+                  Value
+                </label>
+                <Input
+                  name="value"
+                  type="number"
+                  step="any"
+                  value={progressForm.value}
+                  onChange={handleProgressChange}
+                  placeholder="Enter value (e.g., 75)"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-1">
+                  Note (Optional)
+                </label>
+                <textarea
+                  name="note"
+                  value={progressForm.note}
+                  onChange={handleProgressChange}
+                  rows="2"
+                  placeholder="Add any note..."
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div className="flex gap-4 pt-2">
+                <Button type="submit" className="flex-1">
+                  Add Record
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setIsAddProgressOpen(false)}
                 >
                   Cancel
                 </Button>
