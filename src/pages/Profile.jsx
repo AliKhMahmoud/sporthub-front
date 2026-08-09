@@ -110,7 +110,7 @@ function Profile() {
       if (isAthlete) {
         try {
           const statsRes = await statService.getMyStats();
-          const statsPayload = statsRes?.data || statsRes;
+          const statsPayload = statsRes?.data?.data || statsRes?.data || statsRes;
           
           if (statsPayload) {
             setProfileStats(statsPayload);
@@ -122,8 +122,9 @@ function Profile() {
 
         try {
           const progressRes = await getMyProgress();
-          if (progressRes?.success || progressRes) {
-            setProgressHistory(progressRes.data || progressRes || []);
+          const progressPayload = progressRes?.data?.data || progressRes?.data || progressRes;
+          if (progressPayload) {
+            setProgressHistory(Array.isArray(progressPayload) ? progressPayload : (progressPayload.data || []));
           }
         } catch (progError) {
           console.error("Error loading progress history:", progError);
@@ -133,6 +134,7 @@ function Profile() {
       console.error("Error loading profile details:", error);
     }
   };
+
   useEffect(() => {
     loadProfileData();
   }, [user, isAthlete]);
