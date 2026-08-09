@@ -4,7 +4,7 @@ const statService = {
   // جلب إحصائيات الرياضي الحالي (المسجل دخوله)
   getMyStats: async () => {
     try {
-      const response = await api.get('/api/stats/me');
+      const response = await api.get('/stats/me');
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -14,7 +14,7 @@ const statService = {
   // جلب إحصائيات رياضي آخر (عام)
   getUserStats: async (userId) => {
     try {
-      const response = await api.get(`/api/stats/${userId}`);
+      const response = await api.get(`/stats/${userId}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
