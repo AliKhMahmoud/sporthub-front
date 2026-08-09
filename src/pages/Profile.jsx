@@ -10,7 +10,7 @@ import {
   getProfile,
   updateProfile,
 } from "../services/profileService";
-import { getMyProgress, addProgress } from "../services/progressService";
+import { getMyProgress, getMyProgressStats, addProgress } from "../services/progressService";
 import statService from "../services/statService";
 
 import { useAuth } from "../context/AuthContext";
@@ -52,6 +52,14 @@ function Profile() {
     acceptedAthletes: 0,
     pendingRequests: 0,
     coachRating: 0,
+  });
+
+  const [xpData, setXpData] = useState({
+    xp: 0,
+    level: 1,
+    levelTitle: "Rookie",
+    xpProgress: 0,
+    xpForNextLevel: 100,
   });
 
   const [formData, setFormData] = useState({
@@ -106,28 +114,54 @@ function Profile() {
         console.error("Error loading sports:", e);
       }
 
-      // جلب الإحصائيات وحفظها بشكل صحيح
+      // جلب البيانات الخاصة بالرياضي
       if (isAthlete) {
+        // ─── جلب الإحصائيات الأساسية ───────────────────────────────
         try {
           const statsRes = await statService.getMyStats();
-          const statsPayload = statsRes?.data?.data || statsRes?.data || statsRes;
-          
-          if (statsPayload) {
-            setProfileStats(statsPayload);
-            setProgressStats(statsPayload.metrics || []); 
+          // statService يرجع البيانات مباشرة
+          if (statsRes) {
+            setProfileStats({
+              forumPosts: statsRes.totalPosts || 0,
+              likesReceived: statsRes.receivedLikes || 0,
+              commentsReceived: statsRes.receivedComments || 0,
+              averageProgress: statsRes.averageProgress || 0,
+              acceptedAthletes: 0,
+              pendingRequests: 0,
+              coachRating: statsRes.averageRating || 0,
+            });
+
+            // حفظ XP والـ level
+            setXpData({
+              xp: statsRes.xp || 0,
+              level: statsRes.level || 1,
+              levelTitle: statsRes.levelTitle || "Rookie",
+              xpProgress: statsRes.xpProgress || 0,
+              xpForNextLevel: statsRes.xpForNextLevel || 100,
+            });
           }
         } catch (statsError) {
           console.error("Error loading athlete stats:", statsError);
         }
 
+        // ─── جلب سجلات التقدم ───────────────────────────────────
         try {
           const progressRes = await getMyProgress();
-          const progressPayload = progressRes?.data?.data || progressRes?.data || progressRes;
-          if (progressPayload) {
-            setProgressHistory(Array.isArray(progressPayload) ? progressPayload : (progressPayload.data || []));
-          }
+          // progressService يرجع { success, status, message, data }
+          const progressData = progressRes?.data || [];
+          setProgressHistory(Array.isArray(progressData) ? progressData : []);
         } catch (progError) {
           console.error("Error loading progress history:", progError);
+        }
+
+        // ─── جلب إحصائيات التقدم (Latest, Best, Average) ──────────
+        try {
+          const progressStatsRes = await getMyProgressStats();
+          // هذا يرجع array من الـ metrics بـ latest, best, average
+          const statsData = progressStatsRes?.data || [];
+          setProgressStats(Array.isArray(statsData) ? statsData : []);
+        } catch (statsError) {
+          console.error("Error loading progress stats:", statsError);
         }
       }
     } catch (error) {
@@ -139,9 +173,6 @@ function Profile() {
     loadProfileData();
   }, [user, isAthlete]);
 
-  const receivedLikes = profileStats.likesReceived || 0;
-  const receivedComments = profileStats.commentsReceived || 0;
-
   const trainingSports = [
     ...new Set(
       progressHistory
@@ -149,30 +180,6 @@ function Profile() {
         .filter(Boolean)
     ),
   ];
-
-  const totalPlans = aiPlans.length + normalWorkouts.length;
-  const completedPlans = aiPlans.length;
-
-  const xp =
-    totalPlans * 20 +
-    completedPlans * 50 +
-    receivedLikes * 2 +
-    receivedComments * 3;
-
-  const level = Math.floor(xp / 100) + 1;
-  const currentLevelXp = xp % 100;
-  const nextLevelXp = 100;
-
-  const levelTitle =
-    level >= 10
-      ? "Legend"
-      : level >= 7
-      ? "Elite Athlete"
-      : level >= 5
-      ? "Champion"
-      : level >= 3
-      ? "Active Athlete"
-      : "Rookie";
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -242,11 +249,11 @@ function Profile() {
     event.preventDefault();
     try {
       const payload = {
+        traineeId: user?._id || user?.id,
         sportId: progressForm.sport,
         metric: progressForm.metric,
         value: Number(progressForm.value),
         note: progressForm.note,
-        userId: user?._id || user?.id,
       };
 
       const res = await addProgress(payload);
@@ -362,22 +369,22 @@ function Profile() {
                   <div>
                     <p className="text-slate-600 dark:text-slate-400">Level System</p>
                     <h2 className="text-3xl font-bold text-slate-950 dark:text-white">
-                      Level {level} • {levelTitle}
+                      Level {xpData.level} • {xpData.levelTitle}
                     </h2>
                   </div>
                   <div className="flex items-center gap-2 text-red-500 dark:text-red-400 font-bold">
                     <Zap size={22} />
-                    {xp} XP
+                    {xpData.xp} XP
                   </div>
                 </div>
                 <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-4 overflow-hidden">
                   <div
                     className="bg-red-500 h-4 transition-all"
-                    style={{ width: `${currentLevelXp}%` }}
+                    style={{ width: `${xpData.xpProgress}%` }}
                   />
                 </div>
                 <p className="text-slate-500 dark:text-slate-400 mt-3 text-sm">
-                  {currentLevelXp} / {nextLevelXp} XP to next level
+                  {xpData.xpProgress} / 100 XP to next level
                 </p>
               </div>
 
@@ -402,24 +409,24 @@ function Profile() {
                         className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl"
                       >
                         <p className="text-slate-500 dark:text-slate-400 uppercase text-xs font-bold tracking-wider">
-                          Metric: {stat._id || stat.metric}
+                          {stat.metric || stat._id}
                         </p>
                         <div className="mt-2 flex items-baseline justify-between">
                           <div>
                             <span className="text-xs text-slate-400">Latest: </span>
                             <span className="text-xl font-bold text-slate-950 dark:text-white">
-                              {stat.latest}
+                              {stat.latest || "—"}
                             </span>
                           </div>
                           <div>
                             <span className="text-xs text-slate-400">Best: </span>
                             <span className="text-xl font-bold text-emerald-500">
-                              {stat.best}
+                              {stat.best || "—"}
                             </span>
                           </div>
                         </div>
                         <div className="mt-2 text-xs text-slate-500">
-                          Total records tracked: {stat.count}
+                          Avg: {stat.average || "—"} • Records: {stat.count || 0}
                         </div>
                       </div>
                     ))
