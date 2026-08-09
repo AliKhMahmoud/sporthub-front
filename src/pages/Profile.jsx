@@ -84,8 +84,9 @@ function Profile() {
         console.error("Error loading sports:", e);
       }
 
-      // 3. جلب البيانات الخاصة بالرياضي
-      if (userData.role === "athlete" || isAthlete) {
+      // 3. جلب البيانات الخاصة بالرياضي (سواء من الكائن المسترجع أو الـ Context)
+      const currentRole = userData.role || user?.role;
+      if (currentRole === "athlete" || isAthlete) {
         // جلب الإحصائيات الأساسية والنقاط XP
         try {
           const statsRes = await statService.getMyStats();
@@ -126,7 +127,9 @@ function Profile() {
   };
 
   useEffect(() => {
-    loadProfileData();
+    if (user) {
+      loadProfileData();
+    }
   }, [user]);
 
   const trainingSports = [
@@ -161,23 +164,27 @@ function Profile() {
         name: formData.name,
         bio: formData.about,
         phone: formData.phone,
-        height: Number(formData.height) || 0,
-        weight: Number(formData.weight) || 0,
+        height: formData.height ? Number(formData.height) : null,
+        weight: formData.weight ? Number(formData.weight) : null,
       };
 
       if (isCoach) {
         dataToSend.coachSport = formData.coachSport;
       }
 
+      // إرسال التحديث للسيرفر
       const result = await updateProfile(dataToSend);
       const updatedUser = result?.data || result;
 
+      // تحديث السياق وإغلاق المودال
       if (updatedUser) {
         login(updatedUser);
       }
 
       setIsEditOpen(false);
-      loadProfileData();
+
+      // إعادة جلب كل البيانات بانتظام لضمان بقاء الـ XP والإحصائيات
+      await loadProfileData();
     } catch (error) {
       console.error("Error saving profile:", error);
     }
@@ -206,7 +213,7 @@ function Profile() {
     }
   };
 
-  // تعيين الصور الافتراضية في حال كانت null من السيرفر
+  // تعيين الصور الافتراضية
   const avatarUrl =
     profileData?.avatar ||
     user?.avatar ||
@@ -273,10 +280,14 @@ function Profile() {
               {(profileData?.profile?.height || profileData?.profile?.weight) && (
                 <div className="flex gap-4 mt-3 text-sm font-medium text-slate-600 dark:text-slate-400">
                   {profileData?.profile?.height && (
-                    <span>Height: <strong className="text-slate-900 dark:text-white">{profileData.profile.height} cm</strong></span>
+                    <span>
+                      Height: <strong className="text-slate-900 dark:text-white">{profileData.profile.height} cm</strong>
+                    </span>
                   )}
                   {profileData?.profile?.weight && (
-                    <span>Weight: <strong className="text-slate-900 dark:text-white">{profileData.profile.weight} kg</strong></span>
+                    <span>
+                      Weight: <strong className="text-slate-900 dark:text-white">{profileData.profile.weight} kg</strong>
+                    </span>
                   )}
                 </div>
               )}
