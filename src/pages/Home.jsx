@@ -162,12 +162,12 @@ function Home() {
     if (isCoach) {
       return (
         <>
-          <Link to="/dashboard">
+          <Link to="/dashboard/coach">
             <Button className="text-lg px-8 py-4">
               Dashboard
             </Button>
           </Link>
-          <Link to="/dashboard/chats">
+          <Link to="/dashboard/coach/chats">
             <Button
               variant="outline"
               className="text-lg px-8 py-4 bg-white/10 backdrop-blur-md border-white/30 text-white hover:text-red-400"
