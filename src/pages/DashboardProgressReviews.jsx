@@ -10,9 +10,9 @@ import {
 } from "lucide-react";
 
 import {
-  getMyProgress,
   addProgress,
-  deleteProgress, // استيراد دالة الحذف
+  deleteProgress,
+  getAllTraineesProgress, // استيراد دالة الحذف
 } from "../services/progressService";
 
 function DashboardProgressReviews() {
@@ -26,7 +26,7 @@ function DashboardProgressReviews() {
 
   const loadRequests = async () => {
     try {
-      const data = await getMyProgress();
+      const data = await getAllTraineesProgress();
       const requestsArray = Array.isArray(data) ? data : data?.data || [];
       setRequests(requestsArray);
     } catch (error) {

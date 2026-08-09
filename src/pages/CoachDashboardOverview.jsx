@@ -199,14 +199,14 @@ function CoachDashboardOverview() {
 
               <div className="space-y-4">
                 <button
-                  onClick={() => navigate("/dashboard/athletes")}
+                  onClick={() => navigate("/dashboard/trainees")}
                   className="w-full bg-red-500 hover:bg-red-600 py-4 rounded-xl font-semibold transition"
                 >
                   Manage My Trainees
                 </button>
 
                 <button
-                  onClick={() => navigate("/dashboard/pending-ai-plans")}
+                  onClick={() => navigate("/dashboard/ai-plans")}
                   className="w-full border border-slate-700 hover:border-red-500 py-4 rounded-xl font-semibold transition"
                 >
                   Review Pending AI Plans

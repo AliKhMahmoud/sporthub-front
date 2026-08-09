@@ -28,7 +28,7 @@ function DashboardLayout() {
     },
     {
       label: "Pending AI Plans",
-      path: "/dashboard/coach/pending-ai-plans",
+      path: "/dashboard/coach/ai-plans",
       icon: Plus,
     },
     {

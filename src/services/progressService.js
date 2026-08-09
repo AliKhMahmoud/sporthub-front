@@ -29,3 +29,8 @@ export async function getTraineeProgress(traineeId) {
   const response = await api.get(`/progress/trainee/${traineeId}`);
   return response.data;
 }
+
+export const getAllTraineesProgress = async () => {
+  const response = await api.get('/progress/');
+  return response.data;
+};
