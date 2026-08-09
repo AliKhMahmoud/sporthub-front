@@ -230,7 +230,7 @@ function Profile() {
     event.preventDefault();
     try {
       const payload = {
-        sport: progressForm.sport,
+        sportId: progressForm.sport, // تم التعديل هنا لتتوافق مع الباك إند (sportId)
         metric: progressForm.metric,
         value: Number(progressForm.value),
         note: progressForm.note,
@@ -244,7 +244,6 @@ function Profile() {
         loadProfileData();
       }
     } catch (error) {
-      // طباعة تفاصيل الخطأ القادمة من الـ Backend بشكل واضح في الكونسول
       console.error("Error Response Data:", error.response?.data);
       console.error("Full Error Object:", error);
     }
