@@ -110,31 +110,29 @@ function Profile() {
       if (isAthlete) {
         try {
           const statsRes = await statService.getMyStats();
-          // الـ statsRes هنا هو الـ Response الكامل (يحوي success و data)
           const statsPayload = statsRes?.data || statsRes;
           
           if (statsPayload) {
-            // تخزين الـ stats العامة (مثل xp, level وغيرها إن احتجتها)
             setProfileStats(statsPayload);
-            
-            // إذا كان الباك إند يرسل تفاصيل القياسات كـ مصفوفة داخل الـ stats أو جلبها من progressService
-            // سنضع الـ progressStats كـ مصفوفة فارغة مؤقتاً أو نعتمد على الـ progressHistory للقياسات الفردية
             setProgressStats(statsPayload.metrics || []); 
           }
-        } variables => {
+        } catch (statsError) {
           console.error("Error loading athlete stats:", statsError);
         }
 
-        const progressRes = await getMyProgress();
-        if (progressRes?.success || progressRes) {
-          setProgressHistory(progressRes.data || progressRes || []);
+        try {
+          const progressRes = await getMyProgress();
+          if (progressRes?.success || progressRes) {
+            setProgressHistory(progressRes.data || progressRes || []);
+          }
+        } catch (progError) {
+          console.error("Error loading progress history:", progError);
         }
       }
     } catch (error) {
       console.error("Error loading profile details:", error);
     }
   };
-
   useEffect(() => {
     loadProfileData();
   }, [user, isAthlete]);
