@@ -97,9 +97,8 @@ function Profile() {
       setAccountActivity(data?.notifications || []);
       setAiPlans(data?.aiPlans || []);
       setNormalWorkouts(data?.workouts || []);
-      setProfileStats(data?.stats || {});
 
-      // جلب الرياضات دائماً لأن المدرب قد يحتاجها أيضاً في تعديل الرياضة الخاصة به
+      // جلب الرياضات
       try {
         const sportsRes = await getAllSports();
         setAvailableSports(Array.isArray(sportsRes) ? sportsRes : (sportsRes?.data || []));
@@ -107,14 +106,22 @@ function Profile() {
         console.error("Error loading sports:", e);
       }
 
-      // جلب الإحصائيات الحقيقية والـ Progress من الـ Backend للأتليت
+      // جلب الإحصائيات وحفظها بشكل صحيح
       if (isAthlete) {
         try {
           const statsRes = await statService.getMyStats();
-          // التعامل مع الاستجابة سواء كانت مباشرة مصفوفة أو داخل data
-          const statsData = Array.isArray(statsRes) ? statsRes : (statsRes?.data || statsRes?.stats || []);
-          setProgressStats(statsData);
-        } catch (statsError) {
+          // الـ statsRes هنا هو الـ Response الكامل (يحوي success و data)
+          const statsPayload = statsRes?.data || statsRes;
+          
+          if (statsPayload) {
+            // تخزين الـ stats العامة (مثل xp, level وغيرها إن احتجتها)
+            setProfileStats(statsPayload);
+            
+            // إذا كان الباك إند يرسل تفاصيل القياسات كـ مصفوفة داخل الـ stats أو جلبها من progressService
+            // سنضع الـ progressStats كـ مصفوفة فارغة مؤقتاً أو نعتمد على الـ progressHistory للقياسات الفردية
+            setProgressStats(statsPayload.metrics || []); 
+          }
+        } variables => {
           console.error("Error loading athlete stats:", statsError);
         }
 
