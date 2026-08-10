@@ -11,12 +11,8 @@ import {
   XCircle,
   Loader2,
 } from "lucide-react";
-import {
-  getAiPlans,
-  updateAiPlanStatus,
-  saveAiPlanFeedback,
-  deleteAiPlan as deleteAiPlanService,
-} from "../services/aiTrainerService";
+
+import aiPlanService from "../services/aiPlanService";
 
 function DashboardAiPlans() {
   const [plans, setPlans] = useState([]);
@@ -29,8 +25,9 @@ function DashboardAiPlans() {
     const loadPlans = async () => {
       try {
         setLoading(true);
-        const data = await getAiPlans();
-        setPlans(data || []);
+        const response = await aiPlanService.getPlans();
+        const data = response.data || response || [];
+        setPlans(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Error loading AI plans:", error);
         setPlans([]);
@@ -43,7 +40,7 @@ function DashboardAiPlans() {
   }, []);
 
   const totalPlans = plans.length;
-  const pendingPlans = plans.filter((plan) => plan.status === "Pending Coach Review").length;
+  const pendingPlans = plans.filter((plan) => plan.status === "Pending").length;
   const approvedPlans = plans.filter((plan) => plan.status === "Approved").length;
   const rejectedPlans = plans.filter((plan) => plan.status === "Rejected").length;
 
@@ -56,7 +53,7 @@ function DashboardAiPlans() {
 
   const updateStatus = async (id, status) => {
     try {
-      await updateAiPlanStatus(id, status);
+      await aiPlanService.updateStatus(id, status);
       setPlans((prevPlans) =>
         prevPlans.map((plan) =>
           (plan._id === id || plan.id === id) ? { ...plan, status } : plan
@@ -73,7 +70,7 @@ function DashboardAiPlans() {
 
   const deletePlan = async (id) => {
     try {
-      await deleteAiPlanService(id);
+      await aiPlanService.deletePlan(id);
       setPlans((prevPlans) => prevPlans.filter((plan) => plan._id !== id && plan.id !== id));
 
       if (selectedPlan?._id === id || selectedPlan?.id === id) {
@@ -96,7 +93,7 @@ function DashboardAiPlans() {
 
     try {
       setActionLoading(true);
-      await saveAiPlanFeedback(planId, feedback);
+      await aiPlanService.updateStatus(planId, selectedPlan.status, feedback);
 
       setPlans((prevPlans) =>
         prevPlans.map((plan) =>
@@ -170,7 +167,8 @@ function DashboardAiPlans() {
         <div className="space-y-6">
           {plans.map((plan) => {
             const planId = plan._id || plan.id || "";
-            const athleteName = plan.athlete?.name || plan.athleteName || "Unknown Athlete";
+            const athleteName = plan.user?.name || plan.userName || "Unknown Athlete";
+            const sportName = typeof plan.sport === "object" ? plan.sport?.name : plan.sport;
 
             return (
               <motion.div
@@ -186,7 +184,7 @@ function DashboardAiPlans() {
                       Goal: {plan.goal || "Not specified"}
                     </p>
                     <p className="text-slate-400">
-                      Sport: {plan.sport || "Not specified"}
+                      Sport: {sportName || "Not specified"}
                     </p>
                     <p className="text-slate-400">
                       Condition: {plan.condition || "None"}
@@ -263,25 +261,27 @@ function DashboardAiPlans() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-6 z-50">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-3xl w-full max-h-[85vh] overflow-y-auto">
             <h2 className="text-3xl font-bold mb-2">
-              {selectedPlan.plan?.title || "AI Training Plan"}
+              {selectedPlan.level} Plan - {selectedPlan.goal}
             </h2>
 
             <p className="text-slate-400 mb-6">
-              Athlete: {selectedPlan.athlete?.name || selectedPlan.athleteName || "Unknown"}
+              Athlete: {selectedPlan.user?.name || selectedPlan.userName || "Unknown"}
             </p>
 
-            <div className="space-y-5">
-              {(selectedPlan.plan?.days || []).map((day, dayIdx) => (
-                <div key={day.day || dayIdx} className="bg-slate-800 rounded-2xl p-5">
-                  <h3 className="text-xl font-bold mb-2">{day.day}</h3>
-                  <p className="text-slate-400 mb-4">{day.focus}</p>
-                  <ul className="space-y-2">
-                    {(day.exercises || []).map((exercise, idx) => (
-                      <li key={idx} className="text-slate-300">
-                        • {exercise}
-                      </li>
-                    ))}
-                  </ul>
+            <div className="space-y-3 mb-6">
+              {(selectedPlan.exercises || []).map((exercise, idx) => (
+                <div key={exercise._id || idx} className="bg-slate-800 rounded-2xl p-4 flex items-center justify-between">
+                  <div>
+                    <h4 className="text-white font-bold">{exercise.name}</h4>
+                    <p className="text-slate-400 text-xs">
+                      Sets: {exercise.sets} | Reps: {exercise.reps}
+                    </p>
+                  </div>
+                  {exercise.isCompleted && (
+                    <span className="text-emerald-400 text-xs bg-emerald-500/10 px-3 py-1 rounded-full">
+                      Completed
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

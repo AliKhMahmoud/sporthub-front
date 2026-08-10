@@ -4,9 +4,6 @@ import {
   CheckCircle,
   Eye,
   Lock,
-  Pencil,
-  Star,
-  Trash2,
   X,
   Brain,
   Sparkles,
@@ -15,19 +12,10 @@ import {
 
 import Input from "../components/ui/Input";
 import { useAuth } from "../context/AuthContext";
+import aiPlanService from "../services/aiPlanService";
 
-import {
-  getMyAiPlans,
-  createAiPlan,
-  rateAiPlanFeedback,
-  toggleAiPlanDay,
-  createAiPlanComment,
-  updateAiPlanComment,
-  deleteAiPlanComment,
-} from "../services/aiTrainerService";
-
-const getExerciseImage = (exercise) => {
-  const text = exercise.toLowerCase();
+const getExerciseImage = (name = "") => {
+  const text = name.toLowerCase();
 
   if (text.includes("walk") || text.includes("jogging")) {
     return "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?q=80&w=600&auto=format&fit=crop";
@@ -50,30 +38,26 @@ const getExerciseImage = (exercise) => {
 
 function AiTrainer() {
   const { user } = useAuth();
-  // مراعاة _id المعتمد في MongoDB
-  const currentUserId = user?._id || user?.id || user?.email;
 
   const [formData, setFormData] = useState({
     goal: "",
     level: "Beginner",
-    days: "3",
+    durationWeeks: "4",
     condition: "",
-    sport: "Fitness",
+    sport: "", // ObjectId للرياضة
   });
 
   const [loading, setLoading] = useState(false);
-  const [plan, setPlan] = useState(null);
+  const [createdPlan, setCreatedPlan] = useState(null);
   const [savedMessage, setSavedMessage] = useState("");
   const [myPlans, setMyPlans] = useState([]);
   const [selectedSavedPlan, setSelectedSavedPlan] = useState(null);
-  const [commentInputs, setCommentInputs] = useState({});
-  const [editingComment, setEditingComment] = useState(null);
-  const [editingText, setEditingText] = useState("");
 
   const loadMyPlans = async () => {
     try {
-      const data = await getMyAiPlans();
-      setMyPlans(data || []);
+      const response = await aiPlanService.getPlans();
+      const plansList = response.data || response || [];
+      setMyPlans(Array.isArray(plansList) ? plansList : []);
     } catch (error) {
       console.error("Error loading plans:", error);
       setMyPlans([]);
@@ -95,74 +79,40 @@ function AiTrainer() {
     setSavedMessage("");
   };
 
-  // توليد الأيام ديناميكياً بحسب العدد المحدد في الفروم
-  const generateLocalPlan = () => {
-    const totalDays = parseInt(formData.days, 10) || 3;
-    const daysArr = [];
-
-    for (let i = 1; i <= totalDays; i++) {
-      daysArr.push({
-        day: `Day ${i}`,
-        focus: i % 2 === 1 ? "Mobility & Strength" : "Endurance & Recovery",
-        exercises: [
-          "Warm-up stretch & mobility",
-          `${formData.sport} specific drills`,
-          "Core stability exercise",
-          "Cool down stretching",
-        ],
-      });
-    }
-
-    return {
-      title: `${formData.level} ${formData.sport} AI Plan`,
-      days: daysArr,
-    };
-  };
-
-  const generatePlan = async (event) => {
+  const handleCreatePlan = async (event) => {
     event.preventDefault();
-    if (!currentUserId) return;
+    if (!formData.sport || !formData.goal) return;
 
     setLoading(true);
-    const generatedPlan = generateLocalPlan();
-    setPlan(generatedPlan);
-
     try {
-      await createAiPlan({
-        athleteId: currentUserId,
-        athleteName: user?.name || user?.username || "Unknown Athlete",
-        athleteEmail: user?.email || "",
-        goal: formData.goal,
+      const response = await aiPlanService.createPlan({
         sport: formData.sport,
+        goal: formData.goal,
         level: formData.level,
-        daysPerWeek: formData.days,
+        durationWeeks: Number(formData.durationWeeks),
         condition: formData.condition,
-        plan: generatedPlan,
       });
 
-      setSavedMessage("Your AI plan has been sent to the coach for review.");
+      const newPlan = response.data || response;
+      setCreatedPlan(newPlan);
+      setSavedMessage("Your AI plan has been created and sent to the coach.");
       await loadMyPlans();
     } catch (error) {
       console.error(error);
-      setSavedMessage("Failed to send the plan. Please try again.");
+      setSavedMessage("Failed to create the plan. Please check inputs.");
     } finally {
       setLoading(false);
     }
   };
 
-  const rateCoachFeedback = async (planId, rating) => {
+  const handleToggleExercise = async (planId, exerciseId) => {
     try {
-      await rateAiPlanFeedback(planId, rating);
+      await aiPlanService.toggleExercise(planId, exerciseId);
       await loadMyPlans();
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const toggleDayCompletion = async (planId, dayName) => {
-    try {
-      await toggleAiPlanDay(planId, dayName);
-      await loadMyPlans();
+      if (selectedSavedPlan && (selectedSavedPlan._id || selectedSavedPlan.id) === planId) {
+        const updated = await aiPlanService.getPlanById(planId);
+        setSelectedSavedPlan(updated.data || updated);
+      }
     } catch (error) {
       console.error(error);
     }
@@ -170,57 +120,10 @@ function AiTrainer() {
 
   const getProgress = (item) => {
     if (item.status !== "Approved") return 0;
-    const totalDays = item.plan?.days?.length || 0;
-    const completedDays = item.completedDays || [];
-    if (totalDays === 0) return 0;
-    return Math.round((completedDays.length / totalDays) * 100);
-  };
-
-  const addComment = async (planId) => {
-    const text = commentInputs[planId];
-    if (!text?.trim()) return;
-
-    try {
-      await createAiPlanComment(planId, { text });
-      setCommentInputs({ ...commentInputs, [planId]: "" });
-      await loadMyPlans();
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const deleteComment = async (planId, commentId) => {
-    try {
-      await deleteAiPlanComment(planId, commentId);
-      await loadMyPlans();
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const startEditComment = (comment) => {
-    const commentId = comment._id || comment.id;
-    setEditingComment(commentId);
-    setEditingText(comment.text);
-  };
-
-  const saveEditedComment = async (planId, commentId) => {
-    if (!editingText.trim()) return;
-
-    try {
-      await updateAiPlanComment(planId, commentId, { text: editingText });
-      setEditingComment(null);
-      setEditingText("");
-      await loadMyPlans();
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  // التحقق من ملكية التعليق بشرط آمن
-  const isCommentOwner = (comment) => {
-    const authorId = comment.userId?._id || comment.userId || comment.authorId || comment.user?._id || comment.user?.id;
-    return String(authorId) === String(currentUserId);
+    const exercises = item.exercises || [];
+    if (exercises.length === 0) return 0;
+    const completedCount = exercises.filter((ex) => ex.isCompleted).length;
+    return Math.round((completedCount / exercises.length) * 100);
   };
 
   return (
@@ -231,28 +134,22 @@ function AiTrainer() {
 
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <motion.form
-          onSubmit={generatePlan}
+          onSubmit={handleCreatePlan}
           className="lg:col-span-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 space-y-5"
         >
           <Input
             name="goal"
             value={formData.goal}
             onChange={handleChange}
-            placeholder="Your goal"
+            placeholder="Your goal (min 5 chars)"
           />
 
-          <select
+          <Input
             name="sport"
             value={formData.sport}
             onChange={handleChange}
-            className="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700"
-          >
-            <option>Fitness</option>
-            <option>Boxing</option>
-            <option>Bodybuilding</option>
-            <option>Karate</option>
-            <option>Taekwondo</option>
-          </select>
+            placeholder="Sport ObjectId"
+          />
 
           <select
             name="level"
@@ -260,20 +157,21 @@ function AiTrainer() {
             onChange={handleChange}
             className="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700"
           >
-            <option>Beginner</option>
-            <option>Intermediate</option>
-            <option>Advanced</option>
+            <option value="Beginner">Beginner</option>
+            <option value="Intermediate">Intermediate</option>
+            <option value="Advanced">Advanced</option>
           </select>
 
           <select
-            name="days"
-            value={formData.days}
+            name="durationWeeks"
+            value={formData.durationWeeks}
             onChange={handleChange}
             className="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700"
           >
-            <option value="3">3 Days / Week</option>
-            <option value="4">4 Days / Week</option>
-            <option value="5">5 Days / Week</option>
+            <option value="2">2 Weeks</option>
+            <option value="4">4 Weeks</option>
+            <option value="8">8 Weeks</option>
+            <option value="12">12 Weeks</option>
           </select>
 
           <textarea
@@ -281,7 +179,7 @@ function AiTrainer() {
             value={formData.condition}
             onChange={handleChange}
             rows="5"
-            placeholder="Condition or injury"
+            placeholder="Condition or injury (optional)"
             className="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 outline-none focus:border-red-500"
           />
 
@@ -311,43 +209,28 @@ function AiTrainer() {
         </motion.form>
 
         <div className="lg:col-span-2 bg-slate-900 rounded-3xl p-8 border border-slate-800">
-          {plan ? (
+          {createdPlan ? (
             <>
               <h2 className="text-3xl font-bold mb-6 text-white">
-                {plan.title}
+                {createdPlan.level} Plan - {createdPlan.goal}
               </h2>
 
-              <div className="space-y-4">
-                {plan.days.map((item) => (
+              <div className="space-y-3">
+                {(createdPlan.exercises || []).map((ex, idx) => (
                   <div
-                    key={item.day}
-                    className="bg-slate-800/80 rounded-2xl p-5 border border-slate-700/50"
+                    key={ex._id || idx}
+                    className="flex items-center gap-4 bg-slate-800 rounded-xl p-3"
                   >
-                    <h3 className="text-xl font-bold text-white mb-1">
-                      {item.day}
-                    </h3>
-
-                    <p className="text-slate-400 text-sm mb-4">
-                      {item.focus}
-                    </p>
-
-                    <div className="space-y-3">
-                      {item.exercises.map((exercise, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center gap-4 bg-slate-900 rounded-xl p-3"
-                        >
-                          <img
-                            src={getExerciseImage(exercise)}
-                            alt={exercise}
-                            className="w-20 h-16 object-cover rounded-xl"
-                          />
-
-                          <span className="text-slate-300 text-sm">
-                            {exercise}
-                          </span>
-                        </div>
-                      ))}
+                    <img
+                      src={getExerciseImage(ex.name)}
+                      alt={ex.name}
+                      className="w-20 h-16 object-cover rounded-xl"
+                    />
+                    <div>
+                      <h4 className="text-white font-semibold">{ex.name}</h4>
+                      <p className="text-slate-400 text-xs">
+                        Sets: {ex.sets} | Reps: {ex.reps}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -385,9 +268,8 @@ function AiTrainer() {
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
                       <h3 className="text-2xl font-bold text-slate-950 dark:text-white">
-                        {item.plan?.title}
+                        {item.level} Plan
                       </h3>
-
                       <p className="mt-2 text-slate-500">
                         Goal: {item.goal || "Not specified"}
                       </p>
@@ -415,183 +297,30 @@ function AiTrainer() {
                     View Plan Details
                   </button>
 
-                  {item.status !== "Approved" && (
+                  {item.status !== "Approved" ? (
                     <div className="mt-5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 rounded-xl p-4 flex items-center gap-3 text-sm">
                       <Lock size={18} />
                       Waiting for coach approval before training can begin.
                     </div>
-                  )}
-
-                  {item.status === "Approved" && (
-                    <>
-                      <div className="mt-6">
-                        <div className="flex justify-between mb-2">
-                          <span className="font-semibold text-slate-950 dark:text-white">
-                            Progress
-                          </span>
-
-                          <span className="font-bold text-red-500">
-                            {getProgress(item)}%
-                          </span>
-                        </div>
-
-                        <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-4 overflow-hidden">
-                          <div
-                            className="bg-red-500 h-4 transition-all"
-                            style={{ width: `${getProgress(item)}%` }}
-                          />
-                        </div>
+                  ) : (
+                    <div className="mt-6">
+                      <div className="flex justify-between mb-2">
+                        <span className="font-semibold text-slate-950 dark:text-white">
+                          Progress
+                        </span>
+                        <span className="font-bold text-red-500">
+                          {getProgress(item)}%
+                        </span>
                       </div>
 
-                      <div className="mt-5 space-y-3">
-                        {item.plan?.days?.map((day) => {
-                          const completed = item.completedDays?.includes(day.day);
-
-                          return (
-                            <button
-                              key={day.day}
-                              type="button"
-                              onClick={() => toggleDayCompletion(planId, day.day)}
-                              className={
-                                "w-full flex items-center justify-between px-4 py-3 rounded-xl border transition cursor-pointer " +
-                                (completed
-                                  ? "bg-emerald-500/10 border-emerald-500 text-emerald-500"
-                                  : "bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white")
-                              }
-                            >
-                              <span>{day.day}</span>
-                              {completed && <CheckCircle size={18} />}
-                            </button>
-                          );
-                        })}
+                      <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-4 overflow-hidden">
+                        <div
+                          className="bg-red-500 h-4 transition-all"
+                          style={{ width: `${getProgress(item)}%` }}
+                        />
                       </div>
-                    </>
+                    </div>
                   )}
-
-                  <div className="mt-6 bg-slate-100 dark:bg-slate-800 p-4 rounded-xl">
-                    <p className="font-semibold mb-3 text-slate-950 dark:text-white">
-                      Rate Coach Feedback
-                    </p>
-
-                    <div className="flex gap-2">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onClick={() => rateCoachFeedback(planId, star)}
-                          className="hover:scale-110 transition cursor-pointer"
-                        >
-                          <Star
-                            size={28}
-                            className={
-                              star <= (item.coachRating || 0)
-                                ? "text-yellow-400 fill-yellow-400"
-                                : "text-slate-400"
-                            }
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mt-6 bg-slate-100 dark:bg-slate-800 rounded-2xl p-5">
-                    <h4 className="text-xl font-bold mb-4 text-slate-950 dark:text-white">
-                      Plan Comments
-                    </h4>
-
-                    <div className="flex flex-col md:flex-row gap-3 mb-5">
-                      <input
-                        value={commentInputs[planId] || ""}
-                        onChange={(event) =>
-                          setCommentInputs({
-                            ...commentInputs,
-                            [planId]: event.target.value,
-                          })
-                        }
-                        placeholder="Write a comment..."
-                        className="flex-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white outline-none focus:border-red-500"
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() => addComment(planId)}
-                        className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-semibold cursor-pointer transition"
-                      >
-                        Add Comment
-                      </button>
-                    </div>
-
-                    <div className="space-y-3">
-                      {(item.comments || []).length === 0 ? (
-                        <p className="text-slate-500 text-sm">No comments yet.</p>
-                      ) : (
-                        item.comments.map((comment) => {
-                          const commentId = comment._id || comment.id;
-                          return (
-                            <div
-                              key={commentId}
-                              className="bg-white dark:bg-slate-900 rounded-xl p-4"
-                            >
-                              <p className="font-semibold text-red-500 text-sm">
-                                {comment.userName ||
-                                  comment.authorName ||
-                                  comment.user?.name ||
-                                  "User"}
-                              </p>
-
-                              {editingComment === commentId ? (
-                                <input
-                                  value={editingText}
-                                  onChange={(event) =>
-                                    setEditingText(event.target.value)
-                                  }
-                                  className="w-full mt-2 bg-slate-100 dark:bg-slate-800 rounded-xl px-4 py-2 text-slate-900 dark:text-white outline-none border border-red-500"
-                                />
-                              ) : (
-                                <p className="mt-2 text-slate-700 dark:text-slate-300 text-sm">
-                                  {comment.text}
-                                </p>
-                              )}
-
-                              {isCommentOwner(comment) && (
-                                <div className="flex gap-3 mt-3">
-                                  {editingComment === commentId ? (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        saveEditedComment(planId, commentId)
-                                      }
-                                      className="text-emerald-500 text-sm font-semibold cursor-pointer"
-                                    >
-                                      Save
-                                    </button>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => startEditComment(comment)}
-                                      className="text-yellow-500 cursor-pointer"
-                                    >
-                                      <Pencil size={18} />
-                                    </button>
-                                  )}
-
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      deleteComment(planId, commentId)
-                                    }
-                                    className="text-red-500 cursor-pointer"
-                                  >
-                                    <Trash2 size={18} />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
                 </div>
               );
             })
@@ -607,11 +336,9 @@ function AiTrainer() {
                 <span className="text-red-500 font-semibold text-sm">
                   Saved AI Plan
                 </span>
-
                 <h2 className="text-3xl font-bold mt-2 text-slate-950 dark:text-white">
-                  {selectedSavedPlan.plan?.title}
+                  {selectedSavedPlan.level} Plan
                 </h2>
-
                 <p className="text-slate-500 text-sm mt-1">
                   Status: {selectedSavedPlan.status}
                 </p>
@@ -626,51 +353,47 @@ function AiTrainer() {
               </button>
             </div>
 
-            <div className="space-y-5">
-              {selectedSavedPlan.plan?.days?.map((day) => {
-                const completed =
-                  selectedSavedPlan.completedDays?.includes(day.day);
+            <div className="space-y-3">
+              {(selectedSavedPlan.exercises || []).map((ex) => {
+                const planId = selectedSavedPlan._id || selectedSavedPlan.id;
+                const exId = ex._id || ex.id;
 
                 return (
                   <div
-                    key={day.day}
-                    className="bg-slate-100 dark:bg-slate-800 rounded-2xl p-5"
+                    key={exId}
+                    className="flex items-center justify-between p-4 bg-slate-100 dark:bg-slate-800 rounded-2xl"
                   >
-                    <div className="flex items-center justify-between gap-4 mb-4">
+                    <div className="flex items-center gap-4">
+                      <img
+                        src={getExerciseImage(ex.name)}
+                        alt={ex.name}
+                        className="w-20 h-16 object-cover rounded-xl"
+                      />
                       <div>
-                        <h3 className="text-2xl font-bold text-slate-950 dark:text-white">
-                          {day.day}
-                        </h3>
-
-                        <p className="text-slate-500 text-sm">{day.focus}</p>
+                        <h4 className="text-slate-950 dark:text-white font-bold">
+                          {ex.name}
+                        </h4>
+                        <p className="text-slate-500 text-xs">
+                          Sets: {ex.sets} | Reps: {ex.reps}
+                        </p>
                       </div>
-
-                      {completed && (
-                        <span className="text-emerald-500 font-bold flex items-center gap-2 text-sm">
-                          <CheckCircle size={18} />
-                          Completed
-                        </span>
-                      )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {day.exercises.map((exercise, idx) => (
-                        <div
-                          key={idx}
-                          className="bg-white dark:bg-slate-900 rounded-xl p-3 flex items-center gap-4"
-                        >
-                          <img
-                            src={getExerciseImage(exercise)}
-                            alt={exercise}
-                            className="w-24 h-20 object-cover rounded-xl"
-                          />
-
-                          <p className="text-slate-700 dark:text-slate-300 text-sm">
-                            {exercise}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
+                    {selectedSavedPlan.status === "Approved" && (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleExercise(planId, exId)}
+                        className={
+                          "flex items-center gap-2 px-4 py-2 rounded-xl border transition cursor-pointer text-sm font-semibold " +
+                          (ex.isCompleted
+                            ? "bg-emerald-500/10 border-emerald-500 text-emerald-500"
+                            : "bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300")
+                        }
+                      >
+                        <span>{ex.isCompleted ? "Completed" : "Mark Done"}</span>
+                        {ex.isCompleted && <CheckCircle size={16} />}
+                      </button>
+                    )}
                   </div>
                 );
               })}
