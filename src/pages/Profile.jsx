@@ -78,10 +78,10 @@ function Profile() {
       // تعبئة البيانات في الفورم بناءً على شكل الاستجابة من الباك إند
       setFormData({
         name: userData.name || "",
-        about: userData.profile?.bio || "",
+        about: userData.bio || userData.about || "",
         phone: userData.phone || "",
-        height: userData.profile?.height || "",
-        weight: userData.profile?.weight || "",
+        height: userData.height || "",
+        weight: userData.weight || "",
         sport: userData.sport?._id || userData.sport?.id || "",
         coachSport: userData.sport?._id || userData.sport?.id || "",
       });
@@ -256,10 +256,10 @@ function Profile() {
         setProfileData(userData);
         setFormData({
           name: userData.name || "",
-          about: userData.profile?.bio || "",
+          about: userData.bio || userData.about || "",
           phone: userData.phone || "",
-          height: userData.profile?.height || "",
-          weight: userData.profile?.weight || "",
+          height: userData.height || "",
+          weight: userData.weight || "",
           sport: userData.sport?._id || userData.sport?.id || "",
           coachSport: userData.sport?._id || userData.sport?.id || "",
         });
@@ -389,23 +389,23 @@ function Profile() {
               </p>
 
               {/* الشرح الشخصي Bio */}
-              {profileData?.profile?.bio && (
+              {(profileData?.bio || profileData?.about) && (
                 <p className="text-slate-700 dark:text-slate-300 mt-3 max-w-2xl">
-                  {profileData.profile.bio}
+                  {profileData.bio || profileData.about}
                 </p>
               )}
 
               {/* الطول والوزن */}
-              {(profileData?.profile?.height || profileData?.profile?.weight) && (
+              {(profileData?.height || profileData?.weight) && (
                 <div className="flex gap-4 mt-3 text-sm font-medium text-slate-600 dark:text-slate-400">
-                  {profileData?.profile?.height && (
+                  {profileData?.height && (
                     <span>
-                      Height: <strong className="text-slate-900 dark:text-white">{profileData.profile.height} cm</strong>
+                      Height: <strong className="text-slate-900 dark:text-white">{profileData.height} cm</strong>
                     </span>
                   )}
-                  {profileData?.profile?.weight && (
+                  {profileData?.weight && (
                     <span>
-                      Weight: <strong className="text-slate-900 dark:text-white">{profileData.profile.weight} kg</strong>
+                      Weight: <strong className="text-slate-900 dark:text-white">{profileData.weight} kg</strong>
                     </span>
                   )}
                 </div>
