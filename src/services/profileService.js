@@ -18,18 +18,19 @@ export async function updateProfile(data) {
   return response.data;
 }
 
+// 4. جلب بيانات المستخدم حسب المعرف
 export async function getProfileById(userId) {
   const response = await api.get(`/profile/${userId}`);
   return response.data;
 }
 
-// 6. ربط المستخدم بمدرب
+// 5. ربط المستخدم بمدرب
 export async function assignCoach(coachId) {
   const response = await api.put("/profile/assign-coach", { coachId });
   return response.data;
 }
 
-// 7. اختيار الرياضة
+// 6. اختيار الرياضة
 export async function assignSport(sportId) {
   const response = await api.put("/profile/assign-sport", { sportId });
   return response.data;

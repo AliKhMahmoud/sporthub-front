@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import {
   getProfile,
   updateProfile,
+  assignSport,
 } from "../services/profileService";
 import {
   getMyProgress,
@@ -62,7 +63,8 @@ function Profile() {
     phone: "",
     height: "",
     weight: "",
-    coachSport: "Fitness",
+    sport: "",          // للرياضيين
+    coachSport: "",     // للمدربين
   });
 
   const loadProfileData = async () => {
@@ -80,7 +82,8 @@ function Profile() {
         phone: userData.phone || "",
         height: userData.profile?.height || "",
         weight: userData.profile?.weight || "",
-        coachSport: userData.sport?.name || "Fitness",
+        sport: userData.sport?._id || userData.sport?.id || "",
+        coachSport: userData.sport?._id || userData.sport?.id || "",
       });
 
       // 2. جلب قائمة الرياضات
@@ -209,6 +212,7 @@ function Profile() {
     event.preventDefault();
 
     try {
+      // 1. تحديث بيانات البروفايل الأساسية
       const dataToSend = {
         name: formData.name,
         bio: formData.about,
@@ -217,17 +221,28 @@ function Profile() {
         weight: formData.weight ? Number(formData.weight) : null,
       };
 
-      if (isCoach) {
-        dataToSend.coachSport = formData.coachSport;
-      }
-
-      // إرسال التحديث للسيرفر
       const result = await updateProfile(dataToSend);
       const updatedUser = result?.data || result;
 
-      // تحديث السياق وإغلاق المودال
       if (updatedUser) {
         login(updatedUser);
+      }
+
+      // 2. تحديث الرياضة (منفصل عن updateProfile)
+      if (isAthlete && formData.sport) {
+        try {
+          await assignSport(formData.sport);
+        } catch (sportError) {
+          console.error("Error assigning sport:", sportError);
+        }
+      }
+
+      if (isCoach && formData.coachSport) {
+        try {
+          await assignSport(formData.coachSport);
+        } catch (sportError) {
+          console.error("Error assigning coach sport:", sportError);
+        }
       }
 
       setIsEditOpen(false);
@@ -379,9 +394,9 @@ function Profile() {
                 </div>
               )}
 
-              {isCoach && formData.coachSport && (
+              {isCoach && profileData?.sport?.name && (
                 <div className="mt-4 inline-flex items-center gap-2 bg-blue-500/10 text-blue-500 px-4 py-2 rounded-xl font-semibold">
-                  🏆 Coach of {formData.coachSport}
+                  🏆 Coach of {profileData.sport.name}
                 </div>
               )}
 
@@ -540,19 +555,46 @@ function Profile() {
                 placeholder="Weight (kg)"
               />
 
+              {isAthlete && (
+                <div>
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-2">
+                    Sport
+                  </label>
+                  <select
+                    name="sport"
+                    value={formData.sport}
+                    onChange={handleChange}
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-slate-900 dark:text-white"
+                  >
+                    <option value="">Select Sport</option>
+                    {availableSports.map((sport) => (
+                      <option key={sport._id} value={sport._id}>
+                        {sport.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {isCoach && (
-                <select
-                  name="coachSport"
-                  value={formData.coachSport}
-                  onChange={handleChange}
-                  className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-slate-900 dark:text-white"
-                >
-                  {availableSports.map((sport) => (
-                    <option key={sport._id} value={sport.name}>
-                      {sport.name}
-                    </option>
-                  ))}
-                </select>
+                <div>
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-2">
+                    Coach Sport
+                  </label>
+                  <select
+                    name="coachSport"
+                    value={formData.coachSport}
+                    onChange={handleChange}
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-slate-900 dark:text-white"
+                  >
+                    <option value="">Select Sport</option>
+                    {availableSports.map((sport) => (
+                      <option key={sport._id} value={sport._id}>
+                        {sport.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               )}
 
               <div className="flex gap-4 pt-2">
