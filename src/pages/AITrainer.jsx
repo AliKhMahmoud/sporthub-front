@@ -13,7 +13,7 @@ import {
 import Input from "../components/ui/Input";
 import { useAuth } from "../context/AuthContext";
 import aiPlanService from "../services/aiPlanService";
-import { getAllSports } from "../services/sportService";
+import { getAllSports } from "../services/sportsService";
 
 const getExerciseImage = (name = "") => {
   const text = name.toLowerCase();
