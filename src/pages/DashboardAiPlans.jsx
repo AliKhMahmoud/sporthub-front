@@ -9,6 +9,7 @@ import {
   Save,
   Trash2,
   XCircle,
+  Loader2,
 } from "lucide-react";
 import {
   getAiPlans,
@@ -21,15 +22,20 @@ function DashboardAiPlans() {
   const [plans, setPlans] = useState([]);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [feedback, setFeedback] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     const loadPlans = async () => {
       try {
+        setLoading(true);
         const data = await getAiPlans();
         setPlans(data || []);
       } catch (error) {
-        console.error(error);
+        console.error("Error loading AI plans:", error);
         setPlans([]);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -37,74 +43,44 @@ function DashboardAiPlans() {
   }, []);
 
   const totalPlans = plans.length;
-
-  const pendingPlans = plans.filter(
-    (plan) => plan.status === "Pending Coach Review"
-  ).length;
-
-  const approvedPlans = plans.filter(
-    (plan) => plan.status === "Approved"
-  ).length;
-
-  const rejectedPlans = plans.filter(
-    (plan) => plan.status === "Rejected"
-  ).length;
+  const pendingPlans = plans.filter((plan) => plan.status === "Pending Coach Review").length;
+  const approvedPlans = plans.filter((plan) => plan.status === "Approved").length;
+  const rejectedPlans = plans.filter((plan) => plan.status === "Rejected").length;
 
   const stats = [
-    {
-      title: "Total Plans",
-      value: totalPlans,
-      icon: Brain,
-      color: "text-red-400",
-    },
-    {
-      title: "Pending",
-      value: pendingPlans,
-      icon: Clock,
-      color: "text-yellow-400",
-    },
-    {
-      title: "Approved",
-      value: approvedPlans,
-      icon: CheckCircle,
-      color: "text-emerald-400",
-    },
-    {
-      title: "Rejected",
-      value: rejectedPlans,
-      icon: XCircle,
-      color: "text-red-400",
-    },
+    { title: "Total Plans", value: totalPlans, icon: Brain, color: "text-red-400" },
+    { title: "Pending", value: pendingPlans, icon: Clock, color: "text-yellow-400" },
+    { title: "Approved", value: approvedPlans, icon: CheckCircle, color: "text-emerald-400" },
+    { title: "Rejected", value: rejectedPlans, icon: XCircle, color: "text-red-400" },
   ];
 
   const updateStatus = async (id, status) => {
     try {
       await updateAiPlanStatus(id, status);
-      const updatedPlans = await getAiPlans();
-      setPlans(updatedPlans || []);
+      setPlans((prevPlans) =>
+        prevPlans.map((plan) =>
+          (plan._id === id || plan.id === id) ? { ...plan, status } : plan
+        )
+      );
 
       if (selectedPlan?._id === id || selectedPlan?.id === id) {
-        setSelectedPlan({
-          ...selectedPlan,
-          status,
-        });
+        setSelectedPlan((prev) => (prev ? { ...prev, status } : null));
       }
     } catch (error) {
-      console.error(error);
+      console.error("Error updating plan status:", error);
     }
   };
 
   const deletePlan = async (id) => {
     try {
       await deleteAiPlanService(id);
-      const updatedPlans = await getAiPlans();
-      setPlans(updatedPlans || []);
+      setPlans((prevPlans) => prevPlans.filter((plan) => plan._id !== id && plan.id !== id));
 
       if (selectedPlan?._id === id || selectedPlan?.id === id) {
         setSelectedPlan(null);
       }
     } catch (error) {
-      console.error(error);
+      console.error("Error deleting plan:", error);
     }
   };
 
@@ -116,20 +92,34 @@ function DashboardAiPlans() {
   const saveFeedback = async () => {
     if (!selectedPlan) return;
     const planId = selectedPlan._id || selectedPlan.id;
+    if (!planId) return;
 
     try {
+      setActionLoading(true);
       await saveAiPlanFeedback(planId, feedback);
-      const updatedPlans = await getAiPlans();
-      setPlans(updatedPlans || []);
 
-      setSelectedPlan({
-        ...selectedPlan,
-        coachFeedback: feedback,
-      });
+      setPlans((prevPlans) =>
+        prevPlans.map((plan) =>
+          (plan._id === planId || plan.id === planId) ? { ...plan, coachFeedback: feedback } : plan
+        )
+      );
+
+      setSelectedPlan((prev) => (prev ? { ...prev, coachFeedback: feedback } : null));
     } catch (error) {
-      console.error(error);
+      console.error("Error saving feedback:", error);
+    } finally {
+      setActionLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <main className="p-10 text-white flex flex-col items-center justify-center min-h-[400px]">
+        <Loader2 className="animate-spin text-red-500 mb-4" size={40} />
+        <p className="text-slate-400">Loading AI Plans...</p>
+      </main>
+    );
+  }
 
   return (
     <main className="p-10 text-white">
@@ -160,7 +150,7 @@ function DashboardAiPlans() {
               key={stat.title}
               className="bg-slate-900 border border-slate-800 rounded-3xl p-6"
             >
-              <Icon size={28} className={stat.color + " mb-4"} />
+              <Icon size={28} className={`${stat.color} mb-4`} />
               <p className="text-slate-400 mb-2">{stat.title}</p>
               <h2 className="text-4xl font-bold">{stat.value}</h2>
             </div>
@@ -179,7 +169,7 @@ function DashboardAiPlans() {
       ) : (
         <div className="space-y-6">
           {plans.map((plan) => {
-            const planId = plan._id || plan.id;
+            const planId = plan._id || plan.id || "";
             const athleteName = plan.athlete?.name || plan.athleteName || "Unknown Athlete";
 
             return (
@@ -214,7 +204,7 @@ function DashboardAiPlans() {
                     <button
                       type="button"
                       onClick={() => openPlan(plan)}
-                      className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-3 rounded-xl transition"
+                      className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-3 rounded-xl transition cursor-pointer"
                     >
                       <Eye size={18} />
                       View
@@ -223,7 +213,7 @@ function DashboardAiPlans() {
                     <button
                       type="button"
                       onClick={() => updateStatus(planId, "Approved")}
-                      className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 px-4 py-3 rounded-xl transition"
+                      className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 px-4 py-3 rounded-xl transition cursor-pointer"
                     >
                       <CheckCircle size={18} />
                       Approve
@@ -232,7 +222,7 @@ function DashboardAiPlans() {
                     <button
                       type="button"
                       onClick={() => updateStatus(planId, "Rejected")}
-                      className="flex items-center gap-2 bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl transition"
+                      className="flex items-center gap-2 bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl transition cursor-pointer"
                     >
                       <XCircle size={18} />
                       Reject
@@ -241,7 +231,7 @@ function DashboardAiPlans() {
                     <button
                       type="button"
                       onClick={() => deletePlan(planId)}
-                      className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 px-4 py-3 rounded-xl transition"
+                      className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 px-4 py-3 rounded-xl transition cursor-pointer"
                     >
                       <Trash2 size={18} />
                       Delete
@@ -281,8 +271,8 @@ function DashboardAiPlans() {
             </p>
 
             <div className="space-y-5">
-              {(selectedPlan.plan?.days || []).map((day) => (
-                <div key={day.day} className="bg-slate-800 rounded-2xl p-5">
+              {(selectedPlan.plan?.days || []).map((day, dayIdx) => (
+                <div key={day.day || dayIdx} className="bg-slate-800 rounded-2xl p-5">
                   <h3 className="text-xl font-bold mb-2">{day.day}</h3>
                   <p className="text-slate-400 mb-4">{day.focus}</p>
                   <ul className="space-y-2">
@@ -303,16 +293,21 @@ function DashboardAiPlans() {
                 value={feedback}
                 onChange={(event) => setFeedback(event.target.value)}
                 placeholder="Write your notes for this athlete..."
-                rows="5"
+                rows={5}
                 className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 outline-none focus:border-red-500 text-white"
               />
 
               <button
                 type="button"
+                disabled={actionLoading}
                 onClick={saveFeedback}
-                className="mt-4 w-full bg-emerald-500 hover:bg-emerald-600 py-4 rounded-xl font-semibold transition flex items-center justify-center gap-2"
+                className="mt-4 w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-500/50 py-4 rounded-xl font-semibold transition flex items-center justify-center gap-2 cursor-pointer"
               >
-                <Save size={18} />
+                {actionLoading ? (
+                  <Loader2 className="animate-spin" size={18} />
+                ) : (
+                  <Save size={18} />
+                )}
                 Save Feedback
               </button>
             </div>
@@ -320,7 +315,7 @@ function DashboardAiPlans() {
             <button
               type="button"
               onClick={() => setSelectedPlan(null)}
-              className="mt-4 w-full bg-red-500 hover:bg-red-600 py-4 rounded-xl font-semibold transition"
+              className="mt-4 w-full bg-red-500 hover:bg-red-600 py-4 rounded-xl font-semibold transition cursor-pointer"
             >
               Close
             </button>

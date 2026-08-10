@@ -1,54 +1,57 @@
-import api from "./api";
+import api from "./api"; // أو مسار axios instance المعتمد لديك
 
-export async function getAiPlans() {
-  const response = await api.get(
-    "/ai-plans"
-  );
+export const aiPlanService = {
+  // 1. إنشاء خطة AI جديدة (Athlete)
+  createPlan: async (planData) => {
+    const response = await api.post("/ai-plans", planData);
+    return response.data;
+  },
 
-  return response.data;
-}
+  // 2. جلب جميع الخطط حسب الدور والفلتر (Athlete / Coach / Admin)
+  getPlans: async (status = "") => {
+    const response = await api.get("/ai-plans", {
+      params: status ? { status } : {},
+    });
+    return response.data;
+  },
 
-export async function getMyAiPlans() {
-  const response = await api.get(
-    "/ai-plans/my"
-  );
+  // 3. جلب تفاصيل خطة واحدة بواسطة المعرف
+  getPlanById: async (id) => {
+    const response = await api.get(`/ai-plans/${id}`);
+    return response.data;
+  },
 
-  return response.data;
-}
+  // 4. تحديث حالة إنجاز تمرين معين (Athlete)
+  toggleExercise: async (planId, exerciseId) => {
+    const response = await api.put(
+      `/ai-plans/${planId}/exercise/${exerciseId}/toggle`
+    );
+    return response.data;
+  },
 
-export async function createAiPlan(data) {
-  const response = await api.post(
-    "/ai-plans",
-    data
-  );
+  // 5. الموافقة على الخطة (Coach)
+  approvePlan: async (id) => {
+    const response = await api.put(`/ai-plans/${id}/approve`);
+    return response.data;
+  },
 
-  return response.data;
-}
+  // 6. رفض الخطة (Coach)
+  rejectPlan: async (id) => {
+    const response = await api.put(`/ai-plans/${id}/reject`);
+    return response.data;
+  },
 
-export async function approveAiPlan(id) {
-  const response = await api.put(
-    `/ai-plans/${id}/approve`
-  );
+  // 7. إضافة تقييم وملاحظات على الخطة (Coach)
+  addFeedback: async (id, feedbackData) => {
+    const response = await api.put(`/ai-plans/${id}/feedback`, feedbackData);
+    return response.data;
+  },
 
-  return response.data;
-}
+  // 8. حذف خطة - Soft Delete (Athlete)
+  deletePlan: async (id) => {
+    const response = await api.delete(`/ai-plans/${id}`);
+    return response.data;
+  },
+};
 
-export async function rejectAiPlan(id) {
-  const response = await api.put(
-    `/ai-plans/${id}/reject`
-  );
-
-  return response.data;
-}
-
-export async function saveCoachFeedback(
-  id,
-  feedback
-) {
-  const response = await api.put(
-    `/ai-plans/${id}/feedback`,
-    { feedback }
-  );
-
-  return response.data;
-}
+export default aiPlanService;
