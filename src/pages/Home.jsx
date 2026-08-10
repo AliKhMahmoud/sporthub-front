@@ -167,7 +167,7 @@ function Home() {
               Dashboard
             </Button>
           </Link>
-          <Link to="/dashboard/coach/chats">
+          <Link to="/dashboard/chats">
             <Button
               variant="outline"
               className="text-lg px-8 py-4 bg-white/10 backdrop-blur-md border-white/30 text-white hover:text-red-400"

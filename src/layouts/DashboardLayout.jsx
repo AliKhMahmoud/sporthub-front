@@ -1,19 +1,20 @@
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import {
   Bot,
   LayoutDashboard,
   LogOut,
   Users,
-  ClipboardList,
   Plus,
   CheckCircle,
+  ArrowLeft,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
 
 function DashboardLayout() {
   const { logout } = useAuth();
+  const navigate = useNavigate();
 
   const links = [
     {
@@ -32,9 +33,9 @@ function DashboardLayout() {
       icon: Plus,
     },
     {
-      label: "Progress Reviews", // اسم الرابط في القائمة
-      path: "/dashboard/progress-reviews", // المسار الخاص بصفحة المراجعات
-      icon: CheckCircle, // أو أي أيقونة مناسبة مثل Clock أو Activity
+      label: "Progress Reviews",
+      path: "/dashboard/progress-reviews",
+      icon: CheckCircle,
     },
     {
       label: "Chats",
@@ -51,12 +52,24 @@ function DashboardLayout() {
   return (
     <div className="bg-slate-950 min-h-screen text-white flex">
       <aside className="hidden lg:flex w-72 bg-slate-900 border-r border-slate-800 min-h-screen p-6 flex-col">
-        <Link
-          to="/"
-          className="text-3xl font-extrabold text-red-500 mb-10"
-        >
-          SportsHub
-        </Link>
+        <div className="mb-8">
+          <Link
+            to="/"
+            className="text-3xl font-extrabold text-red-500 block mb-4"
+          >
+            SportsHub
+          </Link>
+
+          {/* زر الرجوع للخلف */}
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-white transition"
+          >
+            <ArrowLeft size={18} />
+            <span>Back</span>
+          </button>
+        </div>
 
         <nav className="space-y-3 flex-1">
           {links.map((item) => {
