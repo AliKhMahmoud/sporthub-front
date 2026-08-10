@@ -226,6 +226,8 @@ function Profile() {
 
       if (updatedUser) {
         login(updatedUser);
+        // تحديث profileData فقط بدون reloading كل شيء
+        setProfileData(updatedUser);
       }
 
       // 2. تحديث الرياضة (منفصل عن updateProfile)
@@ -247,8 +249,23 @@ function Profile() {
 
       setIsEditOpen(false);
 
-      // إعادة جلب كل البيانات بانتظام لضمان بقاء الـ XP والإحصائيات
-      await loadProfileData();
+      // 3. جلب البيانات المحدثة فقط (بدون تأثر على XP والـ Progress)
+      try {
+        const response = await getProfile();
+        const userData = response?.data || {};
+        setProfileData(userData);
+        setFormData({
+          name: userData.name || "",
+          about: userData.profile?.bio || "",
+          phone: userData.phone || "",
+          height: userData.profile?.height || "",
+          weight: userData.profile?.weight || "",
+          sport: userData.sport?._id || userData.sport?.id || "",
+          coachSport: userData.sport?._id || userData.sport?.id || "",
+        });
+      } catch (error) {
+        console.error("Error refreshing profile data:", error);
+      }
     } catch (error) {
       console.error("Error saving profile:", error);
     }
