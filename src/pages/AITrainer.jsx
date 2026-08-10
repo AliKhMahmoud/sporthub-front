@@ -13,6 +13,7 @@ import {
 import Input from "../components/ui/Input";
 import { useAuth } from "../context/AuthContext";
 import aiPlanService from "../services/aiPlanService";
+import { getAllSports } from "../services/sportService";
 
 const getExerciseImage = (name = "") => {
   const text = name.toLowerCase();
@@ -47,11 +48,32 @@ function AiTrainer() {
     sport: "", // ObjectId للرياضة
   });
 
+  const [sports, setSports] = useState([]);
+  const [loadingSports, setLoadingSports] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [createdPlan, setCreatedPlan] = useState(null);
   const [savedMessage, setSavedMessage] = useState("");
   const [myPlans, setMyPlans] = useState([]);
   const [selectedSavedPlan, setSelectedSavedPlan] = useState(null);
+
+  useEffect(() => {
+    const fetchSports = async () => {
+      try {
+        setLoadingSports(true);
+        const data = await getAllSports();
+        const sportsList = data?.data || data || [];
+        setSports(Array.isArray(sportsList) ? sportsList : []);
+      } catch (error) {
+        console.error("Error fetching sports:", error);
+        setSports([]);
+      } finally {
+        setLoadingSports(false);
+      }
+    };
+
+    fetchSports();
+  }, []);
 
   const loadMyPlans = async () => {
     try {
@@ -144,12 +166,25 @@ function AiTrainer() {
             placeholder="Your goal (min 5 chars)"
           />
 
-          <Input
+          <select
             name="sport"
             value={formData.sport}
             onChange={handleChange}
-            placeholder="Sport ObjectId"
-          />
+            disabled={loadingSports}
+            className="w-full rounded-xl px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 outline-none focus:border-red-500"
+          >
+            <option value="">
+              {loadingSports ? "Loading sports..." : "Select Sport"}
+            </option>
+            {sports.map((s) => {
+              const sportId = s._id || s.id;
+              return (
+                <option key={sportId} value={sportId}>
+                  {s.name}
+                </option>
+              );
+            })}
+          </select>
 
           <select
             name="level"
@@ -185,7 +220,7 @@ function AiTrainer() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !formData.sport}
             className="w-full bg-red-500 hover:bg-red-600 disabled:bg-red-500/50 text-white py-4 rounded-xl font-semibold flex items-center justify-center gap-2 cursor-pointer transition"
           >
             {loading ? (
