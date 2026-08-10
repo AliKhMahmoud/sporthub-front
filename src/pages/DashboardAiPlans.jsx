@@ -7,7 +7,6 @@ import {
   Eye,
   MessageSquare,
   Save,
-  Trash2,
   XCircle,
   Loader2,
 } from "lucide-react";
@@ -51,33 +50,37 @@ function DashboardAiPlans() {
     { title: "Rejected", value: rejectedPlans, icon: XCircle, color: "text-red-400" },
   ];
 
-  const updateStatus = async (id, status) => {
+  const handleApprove = async (id) => {
     try {
-      await aiPlanService.updateStatus(id, status);
+      await aiPlanService.approvePlan(id);
       setPlans((prevPlans) =>
         prevPlans.map((plan) =>
-          (plan._id === id || plan.id === id) ? { ...plan, status } : plan
+          plan._id === id || plan.id === id ? { ...plan, status: "Approved" } : plan
         )
       );
 
       if (selectedPlan?._id === id || selectedPlan?.id === id) {
-        setSelectedPlan((prev) => (prev ? { ...prev, status } : null));
+        setSelectedPlan((prev) => (prev ? { ...prev, status: "Approved" } : null));
       }
     } catch (error) {
-      console.error("Error updating plan status:", error);
+      console.error("Error approving plan:", error);
     }
   };
 
-  const deletePlan = async (id) => {
+  const handleReject = async (id) => {
     try {
-      await aiPlanService.deletePlan(id);
-      setPlans((prevPlans) => prevPlans.filter((plan) => plan._id !== id && plan.id !== id));
+      await aiPlanService.rejectPlan(id);
+      setPlans((prevPlans) =>
+        prevPlans.map((plan) =>
+          plan._id === id || plan.id === id ? { ...plan, status: "Rejected" } : plan
+        )
+      );
 
       if (selectedPlan?._id === id || selectedPlan?.id === id) {
-        setSelectedPlan(null);
+        setSelectedPlan((prev) => (prev ? { ...prev, status: "Rejected" } : null));
       }
     } catch (error) {
-      console.error("Error deleting plan:", error);
+      console.error("Error rejecting plan:", error);
     }
   };
 
@@ -93,11 +96,13 @@ function DashboardAiPlans() {
 
     try {
       setActionLoading(true);
-      await aiPlanService.updateStatus(planId, selectedPlan.status, feedback);
+      await aiPlanService.addFeedback(planId, { feedback });
 
       setPlans((prevPlans) =>
         prevPlans.map((plan) =>
-          (plan._id === planId || plan.id === planId) ? { ...plan, coachFeedback: feedback } : plan
+          plan._id === planId || plan.id === planId
+            ? { ...plan, coachFeedback: feedback }
+            : plan
         )
       );
 
@@ -134,7 +139,7 @@ function DashboardAiPlans() {
         </h1>
 
         <p className="text-slate-400 text-lg">
-          Review, approve, reject, delete, or add coach feedback to athlete training plans.
+          Review, approve, reject, or add coach feedback to athlete training plans.
         </p>
       </motion.div>
 
@@ -210,7 +215,7 @@ function DashboardAiPlans() {
 
                     <button
                       type="button"
-                      onClick={() => updateStatus(planId, "Approved")}
+                      onClick={() => handleApprove(planId)}
                       className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 px-4 py-3 rounded-xl transition cursor-pointer"
                     >
                       <CheckCircle size={18} />
@@ -219,20 +224,11 @@ function DashboardAiPlans() {
 
                     <button
                       type="button"
-                      onClick={() => updateStatus(planId, "Rejected")}
+                      onClick={() => handleReject(planId)}
                       className="flex items-center gap-2 bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl transition cursor-pointer"
                     >
                       <XCircle size={18} />
                       Reject
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => deletePlan(planId)}
-                      className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 px-4 py-3 rounded-xl transition cursor-pointer"
-                    >
-                      <Trash2 size={18} />
-                      Delete
                     </button>
                   </div>
                 </div>
