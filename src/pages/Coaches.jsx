@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   CalendarDays,
   Clock,
   Search,
   Trophy,
   UserPlus,
+  MessageCircle,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -16,6 +18,7 @@ import {
 
 function Coaches() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const currentUserId = user?.id || user?._id;
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
@@ -213,7 +216,8 @@ function Coaches() {
                   </div>
                 </div>
 
-                <div className="mt-6">
+                {/* Buttons Section */}
+                <div className="mt-6 space-y-3">
                   {requestStatus === "pending" && (
                     <button
                       disabled
@@ -251,6 +255,16 @@ function Coaches() {
                       Request Training
                     </button>
                   )}
+
+                  {/* ✅ Send Message Button - موجودة دايماً */}
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/chat/${coachId}`)}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <MessageCircle size={18} />
+                    Send Message
+                  </button>
                 </div>
               </div>
             );
