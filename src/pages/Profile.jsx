@@ -41,6 +41,12 @@ function Profile() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
 
+  // معاينات الصور الجديدة في الـ Modal
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [coverPreview, setCoverPreview] = useState(null);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [coverFile, setCoverFile] = useState(null);
+
   // حالة فورم إضافة Progress جديد
   const [progressForm, setProgressForm] = useState({
     sport: "",
@@ -206,6 +212,83 @@ function Profile() {
       ...prev,
       [name]: value,
     }));
+  };
+
+  // معالجة تعديل الأفاتار في الـ Modal
+  const handleAvatarPreview = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setAvatarPreview(e.target?.result);
+      setAvatarFile(file);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // معالجة تعديل الكفر في الـ Modal
+  const handleCoverPreview = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setCoverPreview(e.target?.result);
+      setCoverFile(file);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // رفع الأفاتار الجديد
+  const handleUploadAvatar = async () => {
+    if (!avatarFile) return;
+
+    try {
+      setUploadingAvatar(true);
+      const res = await uploadAvatar(avatarFile);
+      const updatedUser = res?.data || res;
+      if (updatedUser) {
+        login(updatedUser);
+        setProfileData(updatedUser);
+      }
+      setAvatarPreview(null);
+      setAvatarFile(null);
+    } catch (error) {
+      console.error("Error uploading avatar:", error);
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  // رفع الكفر الجديد
+  const handleUploadCover = async () => {
+    if (!coverFile) return;
+
+    try {
+      setUploadingCover(true);
+      const res = await uploadCover(coverFile);
+      const updatedUser = res?.data || res;
+      if (updatedUser) {
+        login(updatedUser);
+        setProfileData(updatedUser);
+      }
+      setCoverPreview(null);
+      setCoverFile(null);
+    } catch (error) {
+      console.error("Error uploading cover:", error);
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
+  // مسح المعاينات عند الإغلاق
+  const closeEditModal = () => {
+    setIsEditOpen(false);
+    setAvatarPreview(null);
+    setAvatarFile(null);
+    setCoverPreview(null);
+    setCoverFile(null);
   };
 
   const handleSave = async (event) => {
@@ -531,6 +614,77 @@ function Profile() {
               Edit Profile
             </h2>
 
+            {/* قسم تعديل الصور */}
+            <div className="mb-8 border-b border-slate-200 dark:border-slate-700 pb-6">
+              <h3 className="text-lg font-semibold text-slate-950 dark:text-white mb-4">
+                Profile Images
+              </h3>
+
+              {/* تعديل الأفاتار */}
+              <div className="mb-5">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-3">
+                  Profile Picture
+                </label>
+                <div className="flex items-center gap-4">
+                  <img
+                    src={avatarPreview || avatarUrl}
+                    alt="avatar preview"
+                    className="w-20 h-20 rounded-full object-cover border-2 border-slate-300 dark:border-slate-700"
+                  />
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarPreview}
+                      className="block w-full text-sm text-slate-600 dark:text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-red-500 file:text-white hover:file:bg-red-600"
+                    />
+                    {avatarFile && (
+                      <button
+                        type="button"
+                        onClick={handleUploadAvatar}
+                        disabled={uploadingAvatar}
+                        className="mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white rounded-lg text-sm font-medium transition-colors"
+                      >
+                        {uploadingAvatar ? "Uploading..." : "Upload Avatar"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* تعديل الكفر */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-3">
+                  Cover Image
+                </label>
+                <div className="flex flex-col gap-3">
+                  <img
+                    src={coverPreview || coverUrl}
+                    alt="cover preview"
+                    className="w-full h-32 object-cover rounded-lg border-2 border-slate-300 dark:border-slate-700"
+                  />
+                  <div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleCoverPreview}
+                      className="block w-full text-sm text-slate-600 dark:text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-500 file:text-white hover:file:bg-blue-600"
+                    />
+                    {coverFile && (
+                      <button
+                        type="button"
+                        onClick={handleUploadCover}
+                        disabled={uploadingCover}
+                        className="mt-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-400 text-white rounded-lg text-sm font-medium transition-colors"
+                      >
+                        {uploadingCover ? "Uploading..." : "Upload Cover"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <form onSubmit={handleSave} className="space-y-5">
               <Input
                 name="name"
@@ -622,7 +776,7 @@ function Profile() {
                   type="button"
                   variant="outline"
                   className="flex-1"
-                  onClick={() => setIsEditOpen(false)}
+                  onClick={closeEditModal}
                 >
                   Cancel
                 </Button>
