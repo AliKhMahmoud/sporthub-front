@@ -15,6 +15,7 @@ import {
   getMyTrainingRequests,
   createTrainingRequest,
 } from "../services/trainingRequestService";
+import { startConversation } from "../services/chatService";
 
 function Coaches() {
   const { user } = useAuth();
@@ -99,6 +100,21 @@ function Coaches() {
       }
     } catch (error) {
       console.error("Error sending training request:", error);
+    }
+  };
+
+  const handleOpenChat = async (coach) => {
+    const coachId = coach.id || coach._id;
+    try {
+      // إنشاء أو جلب المحادثة
+      const data = await startConversation({ coachId });
+      const convId = data?.conversation?._id || data?.conversation?.id || data?._id || data?.id;
+
+      if (convId) {
+        navigate(`/chat/${convId}`);
+      }
+    } catch (error) {
+      console.error("Error starting chat:", error);
     }
   };
 
@@ -259,7 +275,7 @@ function Coaches() {
                   {/* ✅ Send Message Button - موجودة دايماً */}
                   <button
                     type="button"
-                    onClick={() => navigate(`/chat/${coachId}`)}
+                    onClick={() => handleOpenChat(coach)}
                     className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors"
                   >
                     <MessageCircle size={18} />

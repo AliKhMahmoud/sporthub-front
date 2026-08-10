@@ -22,65 +22,65 @@ function Chat() {
   const [conversationId, setConversationId] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 1️⃣ بدء المحادثة أولاً لجلب conversationId
-  const initializeConversation = async () => {
-    try {
-      setLoading(true);
-      
-      // تحديد الـ payload بناءً على دور المستخدم
-      const payload = user?.role === "athlete" 
-        ? { coachId } 
-        : { athleteId: coachId };
-
-      const data = await startConversation(payload);
-
-      // جلب الـ conversationId من الاستجابة
-      const convId = data?.conversation?._id || data?.conversation?.id || data?._id || data?.id;
-      
-      if (convId) {
-        setConversationId(convId);
-      } else {
-        console.error("Conversation ID not found in response:", data);
-      }
-    } catch (error) {
-      console.error("Error starting conversation:", error);
-      setLoading(false);
-    }
-  };
-
-  // 2️⃣ جلب الرسائل بعد معرفة conversationId
-  const loadMessages = async (convId) => {
-    try {
-      const data = await getChatMessages(convId);
-
-      // استخراج الرسائل بناءً على هيكل الاستجابة
-      const messagesList = data?.messages || data?.data || data || [];
-      setMessages(Array.isArray(messagesList) ? messagesList : []);
-
-      // استخراج بيانات المستقبل
-      const receiverData = data?.receiver || data?.participant || data?.user || null;
-      if (receiverData) {
-        setReceiver(receiverData);
-      }
-    } catch (error) {
-      console.error("Error loading messages:", error);
-      setMessages([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 3️⃣ استدعاء initializeConversation عند التحميل
+  // جلب المحادثة والرسائل بطلب متسلسل منظم داخل دالة واحدة
   useEffect(() => {
-    if (!coachId) return;
-    initializeConversation();
-  }, [coachId]);
+    let isMounted = true;
 
-  // 4️⃣ استدعاء loadMessages عند معرفة conversationId
-  useEffect(() => {
-    if (!conversationId) return;
-    loadMessages(conversationId);
-  }, [conversationId]);
+    const initChat = async () => {
+      if (!coachId) return;
+
+      try {
+        setLoading(true);
+
+        // 1️⃣ إنشاء أو جلب المحادثة للحصول على conversationId
+        const payload =
+          user?.role === "athlete"
+            ? { coachId }
+            : { athleteId: coachId };
+
+        const convData = await startConversation(payload);
+        const convId =
+          convData?.conversation?._id ||
+          convData?.conversation?.id ||
+          convData?._id ||
+          convData?.id;
+
+        if (!convId) {
+          console.error("Conversation ID not found in response:", convData);
+          if (isMounted) setLoading(false);
+          return;
+        }
+
+        if (isMounted) setConversationId(convId);
+
+        // 2️⃣ جلب الرسائل مباشرة باستخدام الـ convId الذي حصلنا عليه
+        const msgData = await getChatMessages(convId);
+
+        if (isMounted) {
+          const messagesList =
+            msgData?.messages || msgData?.data || msgData || [];
+          setMessages(Array.isArray(messagesList) ? messagesList : []);
+
+          const receiverData =
+            msgData?.receiver || msgData?.participant || msgData?.user || null;
+          if (receiverData) {
+            setReceiver(receiverData);
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing chat:", error);
+        if (isMounted) setMessages([]);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    initChat();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [coachId, user?.role]);
 
   const formatLastSeen = (date) => {
     if (!date) return "Offline";
@@ -88,9 +88,7 @@ function Chat() {
     const lastSeenDate = new Date(date);
     const now = new Date();
 
-    const diffInMinutes = Math.floor(
-      (now - lastSeenDate) / 60000
-    );
+    const diffInMinutes = Math.floor((now - lastSeenDate) / 60000);
 
     if (diffInMinutes < 1) {
       return "Last seen just now";
@@ -115,13 +113,10 @@ function Chat() {
     if (!message.trim() || !conversationId) return;
 
     try {
-      const sentMessage = await sendChatMessage(
-        conversationId,
-        message
-      );
+      const sentMessage = await sendChatMessage(conversationId, message);
 
-      // إضافة الرسالة المرسلة للـ state
-      const newMessage = sentMessage?.message || sentMessage?.data || sentMessage;
+      const newMessage =
+        sentMessage?.message || sentMessage?.data || sentMessage;
       setMessages((prev) => [...prev, newMessage]);
 
       setMessage("");
@@ -133,8 +128,10 @@ function Chat() {
   if (loading) {
     return (
       <main className="max-w-5xl mx-auto px-6 py-12">
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 text-center">
-          <p className="text-slate-500">Loading conversation...</p>
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 text-center border border-slate-200 dark:border-slate-800">
+          <p className="text-slate-500 dark:text-slate-400 font-medium">
+            Loading conversation...
+          </p>
         </div>
       </main>
     );
@@ -176,24 +173,19 @@ function Chat() {
             </p>
           ) : (
             messages.map((msg) => {
-              // استخراج معرّف المرسل بناءً على البنية المحتملة
               const senderId =
                 msg.senderId ||
                 msg.sender?._id ||
                 msg.sender?.id ||
                 msg.from;
 
-              // مقارنة المعرّفات (قد تكون string أو ObjectId)
-              const isMine =
-                String(senderId) === String(currentUserId);
+              const isMine = String(senderId) === String(currentUserId);
 
               return (
                 <div
-                  key={msg._id || msg.id}
+                  key={msg._id || msg.id || Math.random()}
                   className={
-                    isMine
-                      ? "flex justify-end"
-                      : "flex justify-start"
+                    isMine ? "flex justify-end" : "flex justify-start"
                   }
                 >
                   <div
@@ -225,9 +217,7 @@ function Chat() {
         <div className="p-5 border-t border-slate-200 dark:border-slate-800 flex gap-3 bg-white dark:bg-slate-900">
           <input
             value={message}
-            onChange={(event) =>
-              setMessage(event.target.value)
-            }
+            onChange={(event) => setMessage(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
