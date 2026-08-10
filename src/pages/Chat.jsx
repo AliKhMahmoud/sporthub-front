@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Send } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Send, ArrowLeft } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
-
 import {
   startConversation,
   getChatMessages,
@@ -11,7 +10,8 @@ import {
 } from "../services/chatService";
 
 function Chat() {
-  const { coachId } = useParams();
+  const { recipientId } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
 
   const currentUserId = user?._id || user?.id;
@@ -21,55 +21,56 @@ function Chat() {
   const [receiver, setReceiver] = useState(null);
   const [conversationId, setConversationId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  // جلب المحادثة والرسائل بطلب متسلسل منظم داخل دالة واحدة
   useEffect(() => {
     let isMounted = true;
 
     const initChat = async () => {
-      if (!coachId) return;
+      if (!recipientId) return;
 
       try {
         setLoading(true);
+        setErrorMsg("");
 
         // 1️⃣ إنشاء أو جلب المحادثة للحصول على conversationId
         const payload =
           user?.role === "athlete"
-            ? { coachId }
-            : { athleteId: coachId };
+            ? { coachId: recipientId }
+            : { athleteId: recipientId };
 
-        const convData = await startConversation(payload);
-        const convId =
-          convData?.conversation?._id ||
-          convData?.conversation?.id ||
-          convData?._id ||
-          convData?.id;
+        const convRes = await startConversation(payload);
+        const convData = convRes?.data || convRes?.conversation || convRes;
+        const convId = convData?._id || convData?.id;
 
         if (!convId) {
-          console.error("Conversation ID not found in response:", convData);
-          if (isMounted) setLoading(false);
+          if (isMounted) setErrorMsg("Could not load conversation.");
           return;
         }
 
         if (isMounted) setConversationId(convId);
 
-        // 2️⃣ جلب الرسائل مباشرة باستخدام الـ convId الذي حصلنا عليه
-        const msgData = await getChatMessages(convId);
+        // 2️⃣ جلب الرسائل
+        const msgRes = await getChatMessages(convId);
 
         if (isMounted) {
           const messagesList =
-            msgData?.messages || msgData?.data || msgData || [];
+            msgRes?.data?.messages || msgRes?.messages || msgRes?.data || msgRes || [];
           setMessages(Array.isArray(messagesList) ? messagesList : []);
 
           const receiverData =
-            msgData?.receiver || msgData?.participant || msgData?.user || null;
+            msgRes?.data?.receiver || msgRes?.receiver || msgRes?.participant || null;
           if (receiverData) {
             setReceiver(receiverData);
           }
         }
       } catch (error) {
         console.error("Error initializing chat:", error);
-        if (isMounted) setMessages([]);
+        if (isMounted) {
+          const backendMsg =
+            error?.response?.data?.message || "Failed to load chat.";
+          setErrorMsg(backendMsg);
+        }
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -80,31 +81,20 @@ function Chat() {
     return () => {
       isMounted = false;
     };
-  }, [coachId, user?.role]);
+  }, [recipientId, user?.role]);
 
   const formatLastSeen = (date) => {
     if (!date) return "Offline";
-
     const lastSeenDate = new Date(date);
     const now = new Date();
-
     const diffInMinutes = Math.floor((now - lastSeenDate) / 60000);
 
-    if (diffInMinutes < 1) {
-      return "Last seen just now";
-    }
-
-    if (diffInMinutes < 60) {
-      return `Last seen ${diffInMinutes} min ago`;
-    }
+    if (diffInMinutes < 1) return "Last seen just now";
+    if (diffInMinutes < 60) return `Last seen ${diffInMinutes} min ago`;
 
     const diffInHours = Math.floor(diffInMinutes / 60);
-
-    if (diffInHours < 24) {
-      return `Last seen ${diffInHours} hour${
-        diffInHours === 1 ? "" : "s"
-      } ago`;
-    }
+    if (diffInHours < 24)
+      return `Last seen ${diffInHours} hour${diffInHours === 1 ? "" : "s"} ago`;
 
     return `Last seen ${lastSeenDate.toLocaleDateString()}`;
   };
@@ -112,16 +102,25 @@ function Chat() {
   const sendMessageHandler = async () => {
     if (!message.trim() || !conversationId) return;
 
+    const messageText = message;
+    setMessage("");
+
     try {
-      const sentMessage = await sendChatMessage(conversationId, message);
+      const res = await sendChatMessage(conversationId, messageText);
+      const newMessage = res?.data || res?.message || res;
 
-      const newMessage =
-        sentMessage?.message || sentMessage?.data || sentMessage;
-      setMessages((prev) => [...prev, newMessage]);
-
-      setMessage("");
+      if (newMessage && (newMessage._id || newMessage.id)) {
+        setMessages((prev) => [...prev, newMessage]);
+      } else {
+        const msgRes = await getChatMessages(conversationId);
+        const messagesList =
+          msgRes?.data?.messages || msgRes?.messages || msgRes?.data || [];
+        setMessages(Array.isArray(messagesList) ? messagesList : []);
+      }
     } catch (error) {
       console.error("Error sending message:", error);
+      alert(error?.response?.data?.message || "Failed to send message");
+      setMessage(messageText);
     }
   };
 
@@ -137,32 +136,57 @@ function Chat() {
     );
   }
 
+  if (errorMsg) {
+    return (
+      <main className="max-w-5xl mx-auto px-6 py-12">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 text-center space-y-4">
+          <p className="text-red-500 font-semibold text-lg">{errorMsg}</p>
+          <button
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center gap-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+          >
+            <ArrowLeft size={16} /> Go Back
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="max-w-5xl mx-auto px-6 py-12">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
         {/* رأس المحادثة */}
-        <div className="p-6 border-b border-slate-200 dark:border-slate-800">
-          <h1 className="text-3xl font-bold text-slate-950 dark:text-white">
-            Chat with {receiver?.name || "User"}
-          </h1>
+        <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-950 dark:text-white">
+              Chat with {receiver?.name || "User"}
+            </h1>
 
-          <div className="mt-2">
-            <p className="text-slate-600 dark:text-slate-400">
-              {receiver?.role === "coach"
-                ? `Coach for ${receiver?.sport?.name || "Sport"}`
-                : "Athlete"}
-            </p>
+            <div className="mt-2">
+              <p className="text-slate-600 dark:text-slate-400">
+                {receiver?.role === "coach"
+                  ? `Coach for ${receiver?.sport?.name || "Sport"}`
+                  : "Athlete"}
+              </p>
 
-            {receiver?.isOnline ? (
-              <p className="text-emerald-500 text-sm font-semibold mt-1">
-                ● Online
-              </p>
-            ) : (
-              <p className="text-slate-400 text-sm mt-1">
-                {formatLastSeen(receiver?.lastSeen)}
-              </p>
-            )}
+              {receiver?.isOnline ? (
+                <p className="text-emerald-500 text-sm font-semibold mt-1">
+                  ● Online
+                </p>
+              ) : (
+                <p className="text-slate-400 text-sm mt-1">
+                  {formatLastSeen(receiver?.lastSeen)}
+                </p>
+              )}
+            </div>
           </div>
+
+          <button
+            onClick={() => navigate(-1)}
+            className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 p-2 rounded-lg"
+          >
+            <ArrowLeft size={20} />
+          </button>
         </div>
 
         {/* قائمة الرسائل */}
@@ -172,18 +196,18 @@ function Chat() {
               Start your first conversation.
             </p>
           ) : (
-            messages.map((msg) => {
+            messages.map((msg, idx) => {
               const senderId =
                 msg.senderId ||
                 msg.sender?._id ||
                 msg.sender?.id ||
-                msg.from;
+                msg.sender;
 
               const isMine = String(senderId) === String(currentUserId);
 
               return (
                 <div
-                  key={msg._id || msg.id || Math.random()}
+                  key={msg._id || msg.id || idx}
                   className={
                     isMine ? "flex justify-end" : "flex justify-start"
                   }

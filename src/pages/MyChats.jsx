@@ -15,7 +15,6 @@ function MyChats() {
       try {
         setLoading(true);
         const response = await getMyConversations();
-        // الاستجابة تأتي بتنسيق { success, data, message }
         const dataList = response?.data || response || [];
         setConversations(Array.isArray(dataList) ? dataList : []);
       } catch (error) {
@@ -55,7 +54,7 @@ function MyChats() {
             You have no conversations yet.
           </p>
 
-          <Link to={user?.role === "coach" ? "/trainees" : "/coaches"}>
+          <Link to={user?.role === "coach" ? "/dashboard/trainees" : "/coaches"}>
             <button className="mt-6 bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-semibold transition-colors">
               {user?.role === "coach" ? "View Trainees" : "Find a Coach"}
             </button>
@@ -64,27 +63,33 @@ function MyChats() {
       ) : (
         <div className="space-y-5">
           {conversations.map((conversation) => {
-            // تحديد الطرف الآخر حسب دور المستخدم الحالي (هل هو لاعب أم مدرب؟)
-            const otherUser =
+            const partner =
               user?.role === "coach"
                 ? conversation.athlete
                 : conversation.coach;
 
-            const partner = otherUser || {};
+            const partnerId = partner?._id || partner?.id;
+
+            const lastMsgText =
+              typeof conversation.lastMessage === "string"
+                ? conversation.lastMessage
+                : conversation.lastMessage?.text ||
+                  conversation.lastMessage?.message ||
+                  "No messages yet";
 
             return (
               <div
-                key={conversation._id}
+                key={conversation._id || conversation.id}
                 className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-5 shadow-sm hover:border-slate-300 dark:hover:border-slate-700 transition-all"
               >
                 <div className="flex items-start gap-4">
                   <div className="relative">
                     <img
-                      src={partner.avatar || "https://i.pravatar.cc/150"}
-                      alt={partner.name || "User"}
+                      src={partner?.avatar || "https://i.pravatar.cc/150"}
+                      alt={partner?.name || "User"}
                       className="w-16 h-16 rounded-full object-cover border-2 border-red-500/30"
                     />
-                    {partner.isOnline && (
+                    {partner?.isOnline && (
                       <span className="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full" />
                     )}
                   </div>
@@ -92,7 +97,7 @@ function MyChats() {
                   <div>
                     <div className="flex items-center gap-3">
                       <h2 className="text-2xl font-bold text-slate-950 dark:text-white">
-                        {partner.name || "User"}
+                        {partner?.name || "User"}
                       </h2>
 
                       {(conversation.unreadCount || 0) > 0 && (
@@ -107,7 +112,7 @@ function MyChats() {
                     </p>
 
                     <p className="text-slate-600 dark:text-slate-300 mt-2 line-clamp-1 font-medium">
-                      {conversation.lastMessage || "No messages yet"}
+                      {lastMsgText}
                     </p>
 
                     {conversation.lastMessageAt && (
@@ -121,7 +126,7 @@ function MyChats() {
                   </div>
                 </div>
 
-                <Link to={`/chat/${conversation._id}`}>
+                <Link to={`/chat/${partnerId}`}>
                   <button className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl flex items-center gap-2 font-semibold transition-colors w-full md:w-auto justify-center">
                     <MessageCircle size={18} />
                     Open Chat
