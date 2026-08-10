@@ -162,7 +162,7 @@ function Home() {
     if (isCoach) {
       return (
         <>
-          <Link to="/dashboard/coach">
+          <Link to="/dashboard">
             <Button className="text-lg px-8 py-4">
               Dashboard
             </Button>
