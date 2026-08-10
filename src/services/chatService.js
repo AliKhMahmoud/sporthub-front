@@ -4,7 +4,7 @@ import api from "./api";
  * جلب جميع المحادثات الخاصة بالمستخدم الحالي
  */
 export async function getMyConversations() {
-  const response = await api.get("/conversations");
+  const response = await api.get("/chat/conversations");
   return response.data;
 }
 
@@ -13,7 +13,7 @@ export async function getMyConversations() {
  * @param {Object} payload - { coachId } إذا كان المستخدم athlete، أو { athleteId } إذا كان coach
  */
 export async function startConversation(payload) {
-  const response = await api.post("/conversations", payload);
+  const response = await api.post("/chat/conversations", payload);
   return response.data;
 }
 
@@ -22,7 +22,7 @@ export async function startConversation(payload) {
  * @param {string} conversationId - معرّف المحادثة (وليس معرّف المستخدم)
  */
 export async function getChatMessages(conversationId) {
-  const response = await api.get(`/messages/${conversationId}`);
+  const response = await api.get(`/chat/messages/${conversationId}`);
   return response.data;
 }
 
@@ -32,7 +32,7 @@ export async function getChatMessages(conversationId) {
  * @param {string} content - محتوى الرسالة النصية
  */
 export async function sendChatMessage(conversationId, content) {
-  const response = await api.post("/messages", {
+  const response = await api.post("/chat/messages", {
     conversationId,
     content,
   });
