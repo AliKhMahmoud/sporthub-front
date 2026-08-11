@@ -29,6 +29,8 @@ import DashboardAiPlans from "./pages/DashboardAiPlans";
 import DashboardProgressReviews from "./pages/DashboardProgressReviews";
 import CoachChats from "./pages/CoachChats";
 import CoachTraineesManagement from "./pages/CoachTraineesManagement";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 function App() {
   return (
@@ -100,6 +102,8 @@ function App() {
       {/* 2. مسارات تسجيل الدخول وإنشاء الحساب */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password/:token" element={<ResetPassword />} />
 
       {/* 3. لوحة تحكم المدرب (Coach Dashboard) - تحت مظلة DashboardLayout */}
       <Route

@@ -1,74 +1,82 @@
 import { useEffect, useState } from "react";
-
 import {
   approveCoachRequest,
   getPendingCoachRequests,
   rejectCoachRequest,
 } from "../services/adminService";
-
-import { createNotification } from "../services/notificationService";
+import { CustomAlert } from "../components/CustomAlert";
 
 function AdminPanel() {
   const [coachRequests, setCoachRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadRequests();
   }, []);
-  console.log("1");
+
   const loadRequests = async () => {
+    setLoading(true);
     try {
-      const response = await getPendingCoachRequests();
-      
-      // استخراج المصفوفة بأمان بغض النظر عن هيكلية استجابة السيرفر
+      const response = await getPendingCoachRequests("pending");
+
       const requestsData =
         response?.data?.requests ||
         response?.data ||
-        response?.requests ||
         response;
 
-      // التأكد التام من أن النتيجة مصفوفة لمنع أخطاء الـ map
       setCoachRequests(Array.isArray(requestsData) ? requestsData : []);
     } catch (error) {
       console.error("Error loading coach requests:", error);
       setCoachRequests([]);
+      // Alert when failing to load requests
+      CustomAlert.error(error, "Failed to load coach requests");
+    } finally {
+      setLoading(false);
     }
   };
 
   const approveCoach = async (coach) => {
+    // 1. Ask for confirmation
+    const isConfirmed = await CustomAlert.confirmAdd(
+      "Confirm Approval",
+      `Are you sure you want to approve the application for coach ${coach.name}?`
+    );
+
+    if (!isConfirmed) return;
+
     try {
-      const coachId = coach._id || coach.id; // التقاط الـ ID بشكل صحيح سواء كان _id أو id
+      const coachId = coach._id || coach.id;
       await approveCoachRequest(coachId);
 
-      await createNotification({
-        type: "coach_status",
-        userId: coachId,
-        title: "Coach Request Approved",
-        message: "Congratulations! Your coach account has been approved.",
-        link: "/profile",
-      });
-
+      // 2. Show success alert
+      CustomAlert.success("Approved Successfully", `Coach ${coach.name}'s account has been approved.`);
       loadRequests();
     } catch (error) {
-      console.error("Error approving coach:", error);
+      // 3. Show error alert
+      CustomAlert.error(error, "Failed to approve coach request");
     }
   };
 
   const rejectCoach = async (coach) => {
+    // 1. Ask for rejection confirmation
+    const isConfirmed = await CustomAlert.confirmDelete(
+      "Confirm Rejection",
+      `Are you sure you want to reject the application for coach ${coach.name}?`,
+      "Yes, Reject Request"
+    );
+
+    if (!isConfirmed) return;
+
     try {
-      const coachId = coach._id || coach.id; // التقاط الـ ID بشكل صحيح سواء كان _id أو id
+      const coachId = coach._id || coach.id;
       await rejectCoachRequest(coachId);
 
-      await createNotification({
-        type: "coach_status",
-        userId: coachId,
-        title: "Coach Request Rejected",
-        message: "Unfortunately your coach request was rejected.",
-        link: "/profile",
-      });
-
+      // 2. Show success alert
+      CustomAlert.success("Rejected", `Coach ${coach.name}'s request has been rejected.`);
       loadRequests();
     } catch (error) {
-      console.error("Error rejecting coach:", error);
+      // 3. Show error alert
+      CustomAlert.error(error, "Failed to reject coach request");
     }
   };
 
@@ -83,84 +91,102 @@ function AdminPanel() {
           Manage coach requests.
         </p>
 
-        {coachRequests.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-8 text-slate-500">Loading requests...</div>
+        ) : coachRequests.length === 0 ? (
           <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl p-8 text-center text-slate-600 dark:text-slate-300">
             No pending coach requests.
           </div>
         ) : (
           <div className="space-y-5">
-            {coachRequests.map((coach) => (
-              <div
-                key={coach.id}
-                className="border border-slate-200 dark:border-slate-700 rounded-2xl p-6"
-              >
-                <h3 className="text-2xl font-bold text-slate-950 dark:text-white">
-                  {coach.name}
-                </h3>
+            {coachRequests.map((coach) => {
+              const coachId = coach._id || coach.id;
 
-                <p className="text-slate-500 mt-2">
-                  {coach.email}
-                </p>
+              const sportName = typeof coach.sport === "object"
+                ? coach.sport?.name
+                : coach.sport || "Not selected";
 
-                <p className="text-red-500 mt-2 font-semibold">
-                  Coach for {coach.coachSport || "Not selected"}
-                </p>
+              const workingDaysText = Array.isArray(coach.workingDays)
+                ? coach.workingDays.join(", ")
+                : coach.workingDays;
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5 text-slate-600 dark:text-slate-300">
-                  <p>
-                    <strong>Age:</strong>{" "}
-                    {coach.age || "Not specified"}
+              const certificatesText = Array.isArray(coach.certificates)
+                ? coach.certificates.join(", ")
+                : coach.certificates;
+
+              return (
+                <div
+                  key={coachId}
+                  className="border border-slate-200 dark:border-slate-700 rounded-2xl p-6"
+                >
+                  <h3 className="text-2xl font-bold text-slate-950 dark:text-white">
+                    {coach.name}
+                  </h3>
+
+                  <p className="text-slate-500 mt-2">
+                    {coach.email}
                   </p>
 
-                  <p>
-                    <strong>Experience:</strong>{" "}
-                    {coach.experienceYears
-                      ? `${coach.experienceYears} years`
-                      : "Not specified"}
+                  <p className="text-red-500 mt-2 font-semibold">
+                    Coach for {sportName}
                   </p>
 
-                  <p>
-                    <strong>Working Days:</strong>{" "}
-                    {coach.workingDays || "Not specified"}
-                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5 text-slate-600 dark:text-slate-300">
+                    <p>
+                      <strong>Age:</strong>{" "}
+                      {coach.age || "Not specified"}
+                    </p>
 
-                  <p>
-                    <strong>Working Hours:</strong>{" "}
-                    {coach.workingHours || "Not specified"}
-                  </p>
+                    <p>
+                      <strong>Experience:</strong>{" "}
+                      {coach.experienceYears
+                        ? `${coach.experienceYears} years`
+                        : "Not specified"}
+                    </p>
+
+                    <p>
+                      <strong>Working Days:</strong>{" "}
+                      {workingDaysText || "Not specified"}
+                    </p>
+
+                    <p>
+                      <strong>Working Hours:</strong>{" "}
+                      {coach.workingHours || "Not specified"}
+                    </p>
+                  </div>
+
+                  {certificatesText && (
+                    <p className="text-slate-600 dark:text-slate-300 mt-4">
+                      <strong>Certificates:</strong>{" "}
+                      {certificatesText}
+                    </p>
+                  )}
+
+                  {coach.bio && (
+                    <p className="text-slate-600 dark:text-slate-300 mt-4 leading-7">
+                      {coach.bio}
+                    </p>
+                  )}
+
+                  <div className="flex gap-4 mt-6">
+                    <button
+                      type="button"
+                      onClick={() => approveCoach(coach)}
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 rounded-xl transition cursor-pointer"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => rejectCoach(coach)}
+                      className="bg-red-500 hover:bg-red-600 text-white px-5 py-3 rounded-xl transition cursor-pointer"
+                    >
+                      Reject
+                    </button>
+                  </div>
                 </div>
-
-                {coach.certificates && (
-                  <p className="text-slate-600 dark:text-slate-300 mt-4">
-                    <strong>Certificates:</strong>{" "}
-                    {coach.certificates}
-                  </p>
-                )}
-
-                {coach.bio && (
-                  <p className="text-slate-600 dark:text-slate-300 mt-4 leading-7">
-                    {coach.bio}
-                  </p>
-                )}
-
-                <div className="flex gap-4 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => approveCoach(coach)}
-                    className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 rounded-xl transition"
-                  >
-                    Approve
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => rejectCoach(coach)}
-                    className="bg-red-500 hover:bg-red-600 text-white px-5 py-3 rounded-xl transition"
-                  >
-                    Reject
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

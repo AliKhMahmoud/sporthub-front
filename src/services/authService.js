@@ -43,9 +43,11 @@ export async function forgotPassword(email) {
 }
 
 // 7. تغيير كلمة المرور بالتوكن الجديد
-export async function resetPassword(token, newPassword) {
+export async function resetPassword(token, password, confirmPassword) {
   const response = await api.post(`/auth/reset-password/${token}`, {
-    password: newPassword,
+    password: password,
+    newPassword: password, // لترضية الكنترولر إذا لم تفرغ الباك إند
+    confirmPassword: confirmPassword,
   });
   return response.data;
 }

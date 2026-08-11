@@ -182,9 +182,9 @@ function Home() {
     // للمدير (Admin) أو أي رول آخر يزور الهوم كأول محطة بعد الدخول
     return (
       <>
-        <Link to="/dashboard">
+        <Link to="/admin">
           <Button className="text-lg px-8 py-4">
-            Admin Dashboard
+            Admin Panel
           </Button>
         </Link>
       </>
