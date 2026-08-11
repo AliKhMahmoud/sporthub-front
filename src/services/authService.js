@@ -1,44 +1,51 @@
 import api from "./api";
 
-const TOKEN_KEY = "sportshub_token";
-
+// 1. تسجيل الدخول
 export async function loginUser(data) {
-  const response = await api.post(
-    "/auth/login",
-    data
-  );
-
-  if (response.data?.token) {
-    localStorage.setItem(
-      TOKEN_KEY,
-      response.data.token
-    );
-  }
-
+  // الكوكيز تتكفل بالتوكنات تلقائياً من الباك إند عبر (withCredentials: true)
+  const response = await api.post("/auth/login", data);
   return response.data;
 }
 
+// 2. إنشاء حساب جديد
 export async function registerUser(data) {
-  const response = await api.post(
-    "/auth/register",
-    data
-  );
-
+  const response = await api.post("/auth/register", data);
   return response.data;
 }
 
+// 3. جلب بيانات المستخدم الحالي
 export async function getCurrentUser() {
-  const response = await api.get(
-    "/auth/me"
-  );
-
+  const response = await api.get("/auth/me");
   return response.data;
 }
 
+// 4. تسجيل الخروج
 export async function logoutUser() {
-  await api.post("/auth/logout");
-
-  localStorage.removeItem(TOKEN_KEY);
-
+  try {
+    await api.post("/auth/logout");
+  } finally {
+    // تنظيف أي بيانات مؤقتة متصلة بالجلسة إن وجدت
+    localStorage.clear();
+  }
   return true;
+}
+
+// 5. تأكيد الإيميل عبر الرابط
+export async function verifyEmail(token) {
+  const response = await api.post(`/auth/verify-email/${token}`);
+  return response.data;
+}
+
+// 6. طلب رابط إعادة تعيين كلمة المرور
+export async function forgotPassword(email) {
+  const response = await api.post("/auth/forgot-password", { email });
+  return response.data;
+}
+
+// 7. تغيير كلمة المرور بالتوكن الجديد
+export async function resetPassword(token, newPassword) {
+  const response = await api.post(`/auth/reset-password/${token}`, {
+    password: newPassword,
+  });
+  return response.data;
 }

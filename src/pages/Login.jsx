@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
@@ -9,6 +9,7 @@ import { loginUser } from "../services/authService";
 
 function Login() {
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -30,14 +31,14 @@ function Login() {
 
   const handleLogin = async (event) => {
     event.preventDefault();
+    setError("");
 
     try {
       const response = await loginUser(formData);
+      // استخراج بيانات المستخدم من استجابة الباك إند
       const loggedUser = response?.data || response;
 
-      // التأكد من حفظ البيانات وتحديث السياق
-      login(loggedUser);
-
+      // 🔴 التحقق من حالة المدرب قبل إتمام تسجيل الدخول في الـ Context
       if (loggedUser.role === "coach") {
         if (loggedUser.coachStatus === "pending") {
           setError("Your account is pending admin approval.");
@@ -48,8 +49,9 @@ function Login() {
         }
       }
 
-      // استخدام window.location.href بدلاً من navigate لضمان إعادة تحميل الحالة والتوجه للهوم فوراً
-      window.location.href = "/";
+      // إذا كانت البيانات سليمة والحساب مفعل، نحدث الـ State ونوجه للموقع
+      login(loggedUser);
+      navigate("/");
 
     } catch (error) {
       console.error(error);
@@ -72,7 +74,7 @@ function Login() {
         </p>
 
         {error && (
-          <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl mb-5 text-center">
+          <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl mb-5 text-center text-sm">
             {error}
           </div>
         )}
@@ -96,13 +98,16 @@ function Login() {
 
           <div className="flex items-center justify-between text-sm">
             <label className="flex items-center gap-2 text-slate-400">
-              <input type="checkbox" />
+              <input type="checkbox" className="accent-red-500" />
               Remember me
             </label>
 
-            <span className="text-red-400 hover:text-red-300 cursor-pointer">
+            <Link
+              to="/forgot-password"
+              className="text-red-400 hover:text-red-300 transition"
+            >
               Forgot password?
-            </span>
+            </Link>
           </div>
 
           <Button type="submit" className="w-full">
@@ -110,11 +115,11 @@ function Login() {
           </Button>
         </form>
 
-        <p className="text-slate-400 text-center mt-6">
+        <p className="text-slate-400 text-center mt-6 text-sm">
           Don&apos;t have an account?{" "}
           <Link
             to="/register"
-            className="text-red-400 hover:text-red-300"
+            className="text-red-400 hover:text-red-300 font-medium"
           >
             Register
           </Link>

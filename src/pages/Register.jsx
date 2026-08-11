@@ -3,20 +3,18 @@ import { Link, useNavigate } from "react-router-dom";
 
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
-import { registerUser, loginUser } from "../services/authService";
-import { useAuth } from "../context/AuthContext";
+import { registerUser } from "../services/authService";
+import api from "../services/api";
 
 function Register() {
   const navigate = useNavigate();
-  const { login } = useAuth();
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
   const [sportsOptions, setSportsOptions] = useState([]);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     role: "athlete",
-    sport: "", // سيتم تعيين أول رياضة تلقائياً عند جلبها
+    sport: "",
     age: "",
     experienceYears: "",
     workingDays: [],
@@ -28,13 +26,12 @@ function Register() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  // جلب الرياضات من الـ Backend عند تحميل الصفحة
+  // جلب الرياضات من الـ Backend عبر api instance لتفادي مشاكل الـ CORS والـ URLs
   useEffect(() => {
     const fetchSports = async () => {
       try {
-        const response = await fetch(`${API_URL}/sports`);
-        const data = await response.json();
-        const sportsList = data.data || data;
+        const response = await api.get("/sports");
+        const sportsList = response.data?.data || response.data;
         
         if (Array.isArray(sportsList) && sportsList.length > 0) {
           setSportsOptions(sportsList);
@@ -120,7 +117,7 @@ function Register() {
       };
 
       if (formData.role === "coach") {
-        dataToSend.sport = formData.sport; // إرسال الـ _id الصحيح مباشرة
+        dataToSend.sport = formData.sport;
         dataToSend.age = formData.age ? Number(formData.age) : undefined;
         dataToSend.experienceYears = formData.experienceYears !== "" ? Number(formData.experienceYears) : undefined;
         dataToSend.workingDays = formData.workingDays;
@@ -131,25 +128,22 @@ function Register() {
         dataToSend.bio = formData.bio ? formData.bio.trim() : "";
       }
 
-      await registerUser(dataToSend);
+      const response = await registerUser(dataToSend);
 
-      setSuccessMessage("Account created successfully! Logging you in...");
+      // إظهار رسالة الباك إند التي تفيد بضرورة توثيق الإيميل أو انتظار موافقة الأدمن
+      const msg = response?.message || "Registered successfully! Please check your email to verify your account.";
+      setSuccessMessage(msg);
 
-      const loginData = await loginUser({
-        email: formData.email,
-        password: formData.password,
-      });
-
-      const loggedUser = loginData.user || loginData.data || loginData;
-      login(loggedUser);
-
+      // توجيه المستخدم لصفحة الـ Login بعد 3 ثوانٍ ليقوم بتسجيل الدخول بعد التوثيق
       setTimeout(() => {
-          window.location.href = "/";
-        }, 1500);
+        navigate("/login");
+      }, 3000);
+
     } catch (err) {
       console.error(err);
       
       const errorData = err?.response?.data;
+      
       let errorMessage = "Registration failed";
 
       if (errorData?.errors && Array.isArray(errorData.errors)) {
@@ -331,11 +325,11 @@ function Register() {
           </Button>
         </form>
 
-        <p className="text-slate-400 text-center mt-6">
+        <p className="text-slate-400 text-center mt-6 text-sm">
           Already have an account?{" "}
           <Link
             to="/login"
-            className="text-red-400 hover:text-red-300"
+            className="text-red-400 hover:text-red-300 font-medium"
           >
             Login
           </Link>
