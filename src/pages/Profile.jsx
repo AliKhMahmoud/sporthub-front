@@ -19,7 +19,7 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import { getAllSports } from "../services/sportsService";
 import { uploadAvatar, uploadCover } from "../services/uploadService";
-
+import { CustomAlert } from "../components/CustomAlert";
 
 function Profile() {
   const { user, login } = useAuth();
@@ -40,12 +40,6 @@ function Profile() {
   // حالات التحميل عند رفع الصور
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
-
-  // معاينات الصور الجديدة في الـ Modal
-  const [avatarPreview, setAvatarPreview] = useState(null);
-  const [coverPreview, setCoverPreview] = useState(null);
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [coverFile, setCoverFile] = useState(null);
 
   // حالة فورم إضافة Progress جديد
   const [progressForm, setProgressForm] = useState({
@@ -69,19 +63,17 @@ function Profile() {
     phone: "",
     height: "",
     weight: "",
-    sport: "",          // للرياضيين
-    coachSport: "",     // للمدربين
+    sport: "",        // للرياضيين
+    coachSport: "",   // للمدربين
   });
 
   const loadProfileData = async () => {
     try {
-      // 1. جلب بيانات البروفايل الرئيسية من الـ API
       const response = await getProfile();
       const userData = response?.data || {};
 
       setProfileData(userData);
 
-      // تعبئة البيانات في الفورم بناءً على شكل الاستجابة من الباك إند
       setFormData({
         name: userData.name || "",
         about: userData.bio || userData.about || "",
@@ -92,7 +84,6 @@ function Profile() {
         coachSport: userData.sport?._id || userData.sport?.id || "",
       });
 
-      // 2. جلب قائمة الرياضات
       try {
         const sportsRes = await getAllSports();
         setAvailableSports(
@@ -102,10 +93,8 @@ function Profile() {
         console.error("Error loading sports:", e);
       }
 
-      // 3. جلب البيانات الخاصة بالرياضي (سواء من الكائن المسترجع أو الـ Context)
       const currentRole = userData.role || user?.role;
       if (currentRole === "athlete" || isAthlete) {
-        // جلب الإحصائيات الأساسية والنقاط XP
         try {
           const statsRes = await statService.getMyStats();
           if (statsRes) {
@@ -121,7 +110,6 @@ function Profile() {
           console.error("Error loading athlete stats:", statsError);
         }
 
-        // جلب سجلات التقدم
         try {
           const progressRes = await getMyProgress();
           const progressData = progressRes?.data || [];
@@ -130,7 +118,6 @@ function Profile() {
           console.error("Error loading progress history:", progError);
         }
 
-        // جلب إحصائيات التقدم (Latest, Best, Average)
         try {
           const progressStatsRes = await getMyProgressStats();
           const statsData = progressStatsRes?.data || [];
@@ -150,7 +137,7 @@ function Profile() {
     }
   }, [user]);
 
-  // معالجة تغيير الأفاتار
+  // معالجة تغيير الأفاتار بالضغط المباشر
   const handleAvatarChange = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -163,14 +150,17 @@ function Profile() {
         login(updatedUser);
       }
       await loadProfileData();
+      CustomAlert.success("Profile picture updated successfully!");
     } catch (error) {
-      console.error("Error uploading avatar:", error);
+      const errorMsg = error.response?.data?.message || "Failed to update profile picture";
+      CustomAlert.error(errorMsg);
     } finally {
       setUploadingAvatar(false);
+      event.target.value = "";
     }
   };
 
-  // معالجة تغيير الغلاف
+  // معالجة تغيير الغلاف بالضغط المباشر
   const handleCoverChange = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -183,10 +173,13 @@ function Profile() {
         login(updatedUser);
       }
       await loadProfileData();
+      CustomAlert.success("Cover photo updated successfully!");
     } catch (error) {
-      console.error("Error uploading cover:", error);
+      const errorMsg = error.response?.data?.message || "Failed to update cover photo";
+      CustomAlert.error(errorMsg);
     } finally {
       setUploadingCover(false);
+      event.target.value = "";
     }
   };
 
@@ -214,88 +207,10 @@ function Profile() {
     }));
   };
 
-  // معالجة تعديل الأفاتار في الـ Modal
-  const handleAvatarPreview = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setAvatarPreview(e.target?.result);
-      setAvatarFile(file);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // معالجة تعديل الكفر في الـ Modal
-  const handleCoverPreview = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setCoverPreview(e.target?.result);
-      setCoverFile(file);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // رفع الأفاتار الجديد
-  const handleUploadAvatar = async () => {
-    if (!avatarFile) return;
-
-    try {
-      setUploadingAvatar(true);
-      const res = await uploadAvatar(avatarFile);
-      const updatedUser = res?.data || res;
-      if (updatedUser) {
-        login(updatedUser);
-        setProfileData(updatedUser);
-      }
-      setAvatarPreview(null);
-      setAvatarFile(null);
-    } catch (error) {
-      console.error("Error uploading avatar:", error);
-    } finally {
-      setUploadingAvatar(false);
-    }
-  };
-
-  // رفع الكفر الجديد
-  const handleUploadCover = async () => {
-    if (!coverFile) return;
-
-    try {
-      setUploadingCover(true);
-      const res = await uploadCover(coverFile);
-      const updatedUser = res?.data || res;
-      if (updatedUser) {
-        login(updatedUser);
-        setProfileData(updatedUser);
-      }
-      setCoverPreview(null);
-      setCoverFile(null);
-    } catch (error) {
-      console.error("Error uploading cover:", error);
-    } finally {
-      setUploadingCover(false);
-    }
-  };
-
-  // مسح المعاينات عند الإغلاق
-  const closeEditModal = () => {
-    setIsEditOpen(false);
-    setAvatarPreview(null);
-    setAvatarFile(null);
-    setCoverPreview(null);
-    setCoverFile(null);
-  };
-
   const handleSave = async (event) => {
     event.preventDefault();
 
     try {
-      // 1. تحديث بيانات البروفايل الأساسية
       const dataToSend = {
         name: formData.name,
         bio: formData.about,
@@ -309,48 +224,23 @@ function Profile() {
 
       if (updatedUser) {
         login(updatedUser);
-        // تحديث profileData فقط بدون reloading كل شيء
         setProfileData(updatedUser);
       }
 
-      // 2. تحديث الرياضة (منفصل عن updateProfile)
       if (isAthlete && formData.sport) {
-        try {
-          await assignSport(formData.sport);
-        } catch (sportError) {
-          console.error("Error assigning sport:", sportError);
-        }
+        await assignSport(formData.sport);
       }
 
       if (isCoach && formData.coachSport) {
-        try {
-          await assignSport(formData.coachSport);
-        } catch (sportError) {
-          console.error("Error assigning coach sport:", sportError);
-        }
+        await assignSport(formData.coachSport);
       }
 
       setIsEditOpen(false);
-
-      // 3. جلب البيانات المحدثة فقط (بدون تأثر على XP والـ Progress)
-      try {
-        const response = await getProfile();
-        const userData = response?.data || {};
-        setProfileData(userData);
-        setFormData({
-          name: userData.name || "",
-          about: userData.bio || userData.about || "",
-          phone: userData.phone || "",
-          height: userData.height || "",
-          weight: userData.weight || "",
-          sport: userData.sport?._id || userData.sport?.id || "",
-          coachSport: userData.sport?._id || userData.sport?.id || "",
-        });
-      } catch (error) {
-        console.error("Error refreshing profile data:", error);
-      }
+      await loadProfileData();
+      CustomAlert.success("Profile updated successfully!");
     } catch (error) {
-      console.error("Error saving profile:", error);
+      const errorMsg = error.response?.data?.message || "Failed to update profile";
+      CustomAlert.error(errorMsg);
     }
   };
 
@@ -369,15 +259,15 @@ function Profile() {
       if (res?.success || res) {
         setIsAddProgressOpen(false);
         setProgressForm({ sport: "", metric: "weight", value: "", note: "" });
-        loadProfileData();
+        await loadProfileData();
+        CustomAlert.success("Progress record added successfully!");
       }
     } catch (error) {
-      console.error("Error Response Data:", error.response?.data);
-      console.error("Full Error Object:", error);
+      const errorMsg = error.response?.data?.message || "Failed to add progress record";
+      CustomAlert.error(errorMsg);
     }
   };
 
-  // تعيين الصور الافتراضية
   const avatarUrl =
     profileData?.avatar ||
     user?.avatar ||
@@ -390,7 +280,6 @@ function Profile() {
 
   return (
     <main className="max-w-7xl mx-auto px-6 py-12">
-      {/* مدخلات ملفات مخفية للرفع */}
       <input
         type="file"
         ref={avatarInputRef}
@@ -411,7 +300,7 @@ function Profile() {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm dark:shadow-none"
       >
-        {/* الغلاف (Cover Image) */}
+        {/* الغلاف */}
         <div className="h-72 overflow-hidden relative group">
           <img
             src={coverUrl}
@@ -420,7 +309,6 @@ function Profile() {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
           
-          {/* زر تغيير الصورة على الغلاف */}
           <button
             type="button"
             onClick={() => coverInputRef.current?.click()}
@@ -435,7 +323,7 @@ function Profile() {
         </div>
 
         <div className="px-8 pb-10 relative">
-          {/* الصورة الشخصية (Avatar) */}
+          {/* الصورة الشخصية */}
           <div className="absolute -top-20">
             <div className="relative w-40 h-40 group">
               <img
@@ -443,7 +331,6 @@ function Profile() {
                 alt={profileData?.name || "profile"}
                 className="w-40 h-40 rounded-full border-4 border-white dark:border-slate-950 object-cover shadow-xl"
               />
-              {/* زر تغيير الأفاتار فوق الصورة */}
               <button
                 type="button"
                 onClick={() => avatarInputRef.current?.click()}
@@ -471,14 +358,12 @@ function Profile() {
                 {profileData?.email || user?.email || "sports member"} • SportsHub Member
               </p>
 
-              {/* الشرح الشخصي Bio */}
               {(profileData?.bio || profileData?.about) && (
                 <p className="text-slate-700 dark:text-slate-300 mt-3 max-w-2xl">
                   {profileData.bio || profileData.about}
                 </p>
               )}
 
-              {/* الطول والوزن */}
               {(profileData?.height || profileData?.weight) && (
                 <div className="flex gap-4 mt-3 text-sm font-medium text-slate-600 dark:text-slate-400">
                   {profileData?.height && (
@@ -526,7 +411,6 @@ function Profile() {
 
           {isAthlete && (
             <>
-              {/* قسم مستويات الـ XP */}
               <div className="mt-10 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-6">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
                   <div>
@@ -551,7 +435,6 @@ function Profile() {
                 </p>
               </div>
 
-              {/* قسم مقاييس الأداء والإحصائيات */}
               <div className="mt-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-bold text-slate-950 dark:text-white">
@@ -606,84 +489,13 @@ function Profile() {
         </div>
       </motion.section>
 
-      {/* نافذة التعديل (Edit Profile Modal) */}
+      {/* نافذة التعديل النصي فقط */}
       {isEditOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center px-6 z-50">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <h2 className="text-3xl font-bold mb-6 text-slate-950 dark:text-white">
               Edit Profile
             </h2>
-
-            {/* قسم تعديل الصور */}
-            <div className="mb-8 border-b border-slate-200 dark:border-slate-700 pb-6">
-              <h3 className="text-lg font-semibold text-slate-950 dark:text-white mb-4">
-                Profile Images
-              </h3>
-
-              {/* تعديل الأفاتار */}
-              <div className="mb-5">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-3">
-                  Profile Picture
-                </label>
-                <div className="flex items-center gap-4">
-                  <img
-                    src={avatarPreview || avatarUrl}
-                    alt="avatar preview"
-                    className="w-20 h-20 rounded-full object-cover border-2 border-slate-300 dark:border-slate-700"
-                  />
-                  <div className="flex-1">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleAvatarPreview}
-                      className="block w-full text-sm text-slate-600 dark:text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-red-500 file:text-white hover:file:bg-red-600"
-                    />
-                    {avatarFile && (
-                      <button
-                        type="button"
-                        onClick={handleUploadAvatar}
-                        disabled={uploadingAvatar}
-                        className="mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white rounded-lg text-sm font-medium transition-colors"
-                      >
-                        {uploadingAvatar ? "Uploading..." : "Upload Avatar"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* تعديل الكفر */}
-              <div>
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-3">
-                  Cover Image
-                </label>
-                <div className="flex flex-col gap-3">
-                  <img
-                    src={coverPreview || coverUrl}
-                    alt="cover preview"
-                    className="w-full h-32 object-cover rounded-lg border-2 border-slate-300 dark:border-slate-700"
-                  />
-                  <div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleCoverPreview}
-                      className="block w-full text-sm text-slate-600 dark:text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-500 file:text-white hover:file:bg-blue-600"
-                    />
-                    {coverFile && (
-                      <button
-                        type="button"
-                        onClick={handleUploadCover}
-                        disabled={uploadingCover}
-                        className="mt-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-400 text-white rounded-lg text-sm font-medium transition-colors"
-                      >
-                        {uploadingCover ? "Uploading..." : "Upload Cover"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
 
             <form onSubmit={handleSave} className="space-y-5">
               <Input
@@ -776,7 +588,7 @@ function Profile() {
                   type="button"
                   variant="outline"
                   className="flex-1"
-                  onClick={closeEditModal}
+                  onClick={() => setIsEditOpen(false)}
                 >
                   Cancel
                 </Button>
@@ -786,7 +598,7 @@ function Profile() {
         </div>
       )}
 
-      {/* نافذة إضافة قياس تقدم جديد (Add Progress Modal) */}
+      {/* نافذة إضافة قياس تقدم جديد */}
       {isAddProgressOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center px-6 z-50">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 w-full max-w-md">

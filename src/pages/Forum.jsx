@@ -17,8 +17,7 @@ import {
   updateForumPost,
 } from "../services/forumService";
 import { getAllSports } from "../services/sportsService";
-
-// استيراد دالة جلب الرياضات (تأكد من مسار ملف الـ service لديك)
+import { CustomAlert } from "../components/CustomAlert";
 
 function Forum() {
   const { user, isCoach, isAdmin } = useAuth();
@@ -29,13 +28,13 @@ function Forum() {
   const canCreatePost = isCoach || isAdmin || user?.role === "publisher";
 
   const [posts, setPosts] = useState([]);
-  const [sports, setSports] = useState([]); // قائمة الرياضات الحقيقية من الداتابيس
+  const [sports, setSports] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [activeCategory, setActiveCategory] = useState("All"); // "All" أو sportId
+  const [activeCategory, setActiveCategory] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // 1. جلب الرياضات عند تحميل الصفحة أول مرة
+  // 1. جلب الرياضات
   useEffect(() => {
     const fetchSports = async () => {
       try {
@@ -49,7 +48,7 @@ function Forum() {
     fetchSports();
   }, []);
 
-  // 2. تحميل المنشورات بناءً على الفلتر (All أو Sport ID)
+  // 2. تحميل المنشورات
   const loadPosts = async (category = activeCategory, page = 1) => {
     setLoading(true);
     try {
@@ -63,7 +62,6 @@ function Forum() {
       if (category === "All") {
         response = await getForumPosts(params);
       } else {
-        // نرسل الـ sportId الحقيقي بدلاً من الاسم النصي
         response = await getPostsBySport(category, params);
       }
 
@@ -106,33 +104,58 @@ function Forum() {
     return () => clearTimeout(timer);
   }, [selectedPostId]);
 
+  // إنشاء منشور جديد
   const createPost = async (postData) => {
     if (!canCreatePost) return;
     try {
       await createForumPost(postData);
+      CustomAlert.success("Post Created", "Your post has been published successfully.");
       setCurrentPage(1);
       await loadPosts(activeCategory, 1);
     } catch (error) {
       console.error("Failed to create post:", error);
+      CustomAlert.error(error, "Failed to Create Post");
     }
   };
 
+  // ─── 1. دالة تأكيد وحذف المنشور عبر CustomAlert ───
   const deletePost = async (postId) => {
-    if (!confirm("Are you sure you want to delete this post?")) return;
+    // إظهار نافذة التأكيد الاحترافية قبل الحذف
+    const isConfirmed = await CustomAlert.confirmDelete(
+      "Delete Post",
+      "Are you sure you want to delete this post? This action cannot be undone.",
+      "Yes, Delete"
+    );
+
+    if (!isConfirmed) return;
+
     try {
       await deleteForumPost(postId);
+      CustomAlert.success("Deleted Successfully", "The post has been deleted.");
       await loadPosts(activeCategory, currentPage);
     } catch (error) {
       console.error("Failed to delete post:", error);
+      CustomAlert.error(error, "Failed to Delete Post");
     }
   };
 
+  // ─── 2. دالة تأكيد وتحديث المنشور عبر CustomAlert ───
   const updatePost = async (postId, updatedData) => {
+    // إظهار نافذة تأكيد التحديث قبل حفظ التغييرات
+    const isConfirmed = await CustomAlert.confirmUpdate(
+      "Update Post",
+      "Are you sure you want to save changes to this post?"
+    );
+
+    if (!isConfirmed) return;
+
     try {
       await updateForumPost(postId, updatedData);
+      CustomAlert.success("Updated Successfully", "Post details have been updated.");
       await loadPosts(activeCategory, currentPage);
     } catch (error) {
       console.error("Failed to update post:", error);
+      CustomAlert.error(error, "Failed to Update Post");
     }
   };
 
@@ -147,14 +170,13 @@ function Forum() {
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Aside Filter Categories (Dynamic) */}
+          {/* Aside Filter Categories */}
           <aside className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 h-fit">
             <h2 className="text-2xl font-bold mb-5 text-slate-950 dark:text-white">
               Categories
             </h2>
 
             <div className="space-y-3">
-              {/* زر الكل */}
               <button
                 type="button"
                 onClick={() => {
@@ -170,7 +192,6 @@ function Forum() {
                 All
               </button>
 
-              {/* أزرار الرياضات القادمة من قاعدة البيانات */}
               {sports.map((sport) => {
                 const sportId = sport._id || sport.id;
                 return (
@@ -178,7 +199,7 @@ function Forum() {
                     key={sportId}
                     type="button"
                     onClick={() => {
-                      setActiveCategory(sportId); // نمرر الـ ID عند الضغط
+                      setActiveCategory(sportId);
                       setCurrentPage(1);
                     }}
                     className={
