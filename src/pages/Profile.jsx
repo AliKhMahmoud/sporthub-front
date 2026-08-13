@@ -19,10 +19,7 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import { getAllSports } from "../services/sportsService";
 import { uploadAvatar, uploadCover } from "../services/uploadService";
-<<<<<<< HEAD
-=======
 import { CustomAlert } from "../components/CustomAlert";
->>>>>>> f42ded5ac119d256740e608aa0a3774ba82a9dfc
 
 function Profile() {
   const { user, login } = useAuth();
@@ -69,13 +66,8 @@ function Profile() {
     phone: "",
     height: "",
     weight: "",
-<<<<<<< HEAD
-    sport: "", // للرياضيين
-    coachSport: "", // للمدربين
-=======
     sport: "",        // للرياضيين
     coachSport: "",   // للمدربين
->>>>>>> f42ded5ac119d256740e608aa0a3774ba82a9dfc
   });
 
   const loadProfileData = async () => {
@@ -85,10 +77,6 @@ function Profile() {
 
       setProfileData(userData);
 
-<<<<<<< HEAD
-      // تعبئة البيانات في الفورم بناءً على كائن profile الفرعي القادم من الباك إند
-=======
->>>>>>> f42ded5ac119d256740e608aa0a3774ba82a9dfc
       setFormData({
         name: userData.name || "",
         about: userData.profile?.bio || userData.bio || userData.about || "",
@@ -108,15 +96,8 @@ function Profile() {
         console.error("Error loading sports:", e);
       }
 
-<<<<<<< HEAD
-      // 3. جلب البيانات الخاصة بالرياضي
-      const role = userData.role || user?.role;
-      if (role === "athlete") {
-        // جلب الإحصائيات الأساسية والنقاط XP
-=======
       const currentRole = userData.role || user?.role;
       if (currentRole === "athlete" || isAthlete) {
->>>>>>> f42ded5ac119d256740e608aa0a3774ba82a9dfc
         try {
           const statsRes = await statService.getMyStats();
           if (statsRes) {
@@ -159,11 +140,7 @@ function Profile() {
     }
   }, [user]);
 
-<<<<<<< HEAD
-  // معالجة تغيير الأفاتار من الزر السريع
-=======
   // معالجة تغيير الأفاتار بالضغط المباشر
->>>>>>> f42ded5ac119d256740e608aa0a3774ba82a9dfc
   const handleAvatarChange = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -261,10 +238,7 @@ function Profile() {
 
       if (updatedUser) {
         login(updatedUser);
-<<<<<<< HEAD
-=======
         setProfileData(updatedUser);
->>>>>>> f42ded5ac119d256740e608aa0a3774ba82a9dfc
       }
 
       if (isAthlete && formData.sport) {
@@ -276,14 +250,8 @@ function Profile() {
       }
 
       setIsEditOpen(false);
-<<<<<<< HEAD
-
-      // 3. جلب البيانات المحدثة بالكامل
-      await loadProfileData();
-=======
       await loadProfileData();
       CustomAlert.success("Profile updated successfully!");
->>>>>>> f42ded5ac119d256740e608aa0a3774ba82a9dfc
     } catch (error) {
       const errorMsg = error.response?.data?.message || "Failed to update profile";
       CustomAlert.error(errorMsg);
