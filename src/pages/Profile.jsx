@@ -354,12 +354,7 @@ function Profile() {
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-<<<<<<< HEAD
-
-          {/* زر تغيير الصورة على الغلاف */}
-=======
           
->>>>>>> f42ded5ac119d256740e608aa0a3774ba82a9dfc
           <button
             type="button"
             onClick={() => coverInputRef.current?.click()}
@@ -410,23 +405,13 @@ function Profile() {
                 {profileData?.phone && `• ${profileData.phone}`}
               </p>
 
-<<<<<<< HEAD
-              {/* الشرح الشخصي Bio */}
-              {(profileData?.profile?.bio || profileData?.bio || profileData?.about) && (
-=======
               {(profileData?.bio || profileData?.about) && (
->>>>>>> f42ded5ac119d256740e608aa0a3774ba82a9dfc
                 <p className="text-slate-700 dark:text-slate-300 mt-3 max-w-2xl">
                   {profileData.profile?.bio || profileData.bio || profileData.about}
                 </p>
               )}
 
-<<<<<<< HEAD
-              {/* الطول والوزن */}
-              {(profileData?.profile?.height || profileData?.profile?.weight || profileData?.height || profileData?.weight) && (
-=======
               {(profileData?.height || profileData?.weight) && (
->>>>>>> f42ded5ac119d256740e608aa0a3774ba82a9dfc
                 <div className="flex gap-4 mt-3 text-sm font-medium text-slate-600 dark:text-slate-400">
                   {(profileData?.profile?.height || profileData?.height) && (
                     <span>
