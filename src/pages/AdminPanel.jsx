@@ -393,14 +393,18 @@ function AdminPanel() {
 
                           {/* Delete Action */}
                           <td className="py-4 px-6 text-right">
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteUser(user)}
-                              title="Delete User"
-                              className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-500/10 dark:hover:bg-red-500/20 transition cursor-pointer"
-                            >
-                              <Trash2 size={18} />
-                            </button>
+                            {user.role !== "admin" ? (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteUser(user)}
+                                title="Delete User"
+                                className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-500/10 dark:hover:bg-red-500/20 transition cursor-pointer"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            ) : (
+                              <span className="text-xs text-slate-400 italic">Protected</span>
+                            )}
                           </td>
                         </tr>
                       );

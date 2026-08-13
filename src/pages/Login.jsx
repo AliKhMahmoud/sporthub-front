@@ -20,10 +20,13 @@ function Login() {
 
   const [loading, setLoading] = useState(false);
 
-  // 1. Handle email verification status from URL params
+  // 1. التعامل مع رابط التفعيل القادم من الإيميل عبر URL Params
   useEffect(() => {
     if (searchParams.get("verified") === "true") {
-      CustomAlert.success("Welcome!", "Your email has been verified successfully. You can now log in.");
+      CustomAlert.success(
+        "Welcome!",
+        "Your email has been verified successfully. You can now log in."
+      );
     } else if (searchParams.get("error")) {
       CustomAlert.error(null, "Verification link is invalid or has expired.");
     }
@@ -49,11 +52,11 @@ function Login() {
     try {
       setLoading(true);
       const response = await loginUser(formData);
-      
-      // Extract user data
+
+      // استخراج بيانات المستخدم
       const loggedUser = response?.data || response;
 
-      // 🔴 1. Check coach status if returned within 200 OK
+      // 🔴 1. التحقق من حالة المدرب في حال إرجاع الاستجابة بـ 200 OK
       if (loggedUser.role === "coach") {
         if (loggedUser.coachStatus === "pending") {
           CustomAlert.warning(
@@ -61,8 +64,8 @@ function Login() {
             "Your coach application is currently under review by the administration. You will be notified once approved."
           );
           return;
-        } 
-        
+        }
+
         if (loggedUser.coachStatus === "rejected") {
           CustomAlert.error(
             null,
@@ -72,7 +75,7 @@ function Login() {
         }
       }
 
-      // 🟢 2. Success login
+      // 🟢 2. تسجيل الدخول بنجاح
       login(loggedUser);
 
       CustomAlert.success(
@@ -81,34 +84,52 @@ function Login() {
       );
 
       navigate("/");
-
     } catch (error) {
       console.error("Login error:", error);
 
-      // Extract Backend Response
+      // استخراج بيانات الخطأ القادمة من Backend
       const responseData = error?.response?.data;
       const status = error?.response?.status;
-      const backendMessage = responseData?.message;
+      const backendMessage = responseData?.message || "";
       const errorCode = responseData?.code || responseData?.status;
 
-      // 🔴 3. Handle Backend Errors
-      if (errorCode === "COACH_PENDING" || backendMessage?.includes("pending")) {
+      // التمييز بين حالات الأخطاء (غير مفعّل / مدرب معلق / مدرب مرفوض / بيانات غير صحيحة)
+      const isPending =
+        errorCode === "COACH_PENDING" ||
+        backendMessage.toLowerCase().includes("pending");
+
+      const isRejected =
+        errorCode === "COACH_REJECTED" ||
+        backendMessage.toLowerCase().includes("rejected");
+
+      const isNotVerified =
+        errorCode === "EMAIL_NOT_VERIFIED" ||
+        backendMessage.toLowerCase().includes("verify");
+
+      // 🔴 3. معالجة أخطاء الـ Backend لكل المستخدمين (رياضي أو مدرب)
+      if (isNotVerified) {
+        CustomAlert.info(
+          "Email Verification Required",
+          backendMessage || "Please verify your email address before logging in."
+        );
+      } else if (isPending) {
         CustomAlert.warning(
           "Account Under Review",
-          backendMessage || "Your coach account is waiting for administrative approval."
+          backendMessage ||
+            "Your coach account is waiting for administrative approval."
         );
-      } else if (errorCode === "COACH_REJECTED" || backendMessage?.includes("rejected")) {
+      } else if (isRejected) {
         CustomAlert.error(
           null,
           backendMessage || "Coach application rejected."
         );
-      } else if (errorCode === "EMAIL_NOT_VERIFIED" || status === 403) {
-        CustomAlert.info(
-          "Email Verification",
-          backendMessage || "Please verify your email address before logging in."
+      } else if (status === 401) {
+        CustomAlert.error(
+          null,
+          backendMessage || "Invalid email or password."
         );
       } else {
-        // General error handling
+        // معالجة باقي الأخطاء العامة
         CustomAlert.error(error, "Login failed");
       }
     } finally {
@@ -119,9 +140,7 @@ function Login() {
   return (
     <main className="bg-slate-950 min-h-screen text-white px-6 py-16 flex justify-center items-center">
       <section className="bg-slate-900 w-full max-w-md p-8 rounded-3xl border border-slate-800">
-        <h1 className="text-4xl font-bold mb-3 text-center">
-          Welcome Back
-        </h1>
+        <h1 className="text-4xl font-bold mb-3 text-center">Welcome Back</h1>
 
         <p className="text-slate-400 text-center mb-8">
           Login to continue your training journey.
@@ -134,6 +153,7 @@ function Login() {
             placeholder="Email Address"
             value={formData.email}
             onChange={handleChange}
+            disabled={loading}
           />
 
           <Input
@@ -142,6 +162,7 @@ function Login() {
             placeholder="Password"
             value={formData.password}
             onChange={handleChange}
+            disabled={loading}
           />
 
           <div className="flex items-center justify-between text-sm">

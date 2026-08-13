@@ -20,11 +20,8 @@ import Input from "../components/ui/Input";
 import { getAllSports } from "../services/sportsService";
 import { uploadAvatar, uploadCover } from "../services/uploadService";
 
-
 function Profile() {
   const { user, login } = useAuth();
-  const isAthlete = user?.role === "athlete";
-  const isCoach = user?.role === "coach";
 
   const avatarInputRef = useRef(null);
   const coverInputRef = useRef(null);
@@ -37,15 +34,14 @@ function Profile() {
   const [progressHistory, setProgressHistory] = useState([]);
   const [availableSports, setAvailableSports] = useState([]);
 
+  // تحديد الدور بناءً على profileData أو user
+  const currentRole = profileData?.role || user?.role;
+  const isAthlete = currentRole === "athlete";
+  const isCoach = currentRole === "coach";
+
   // حالات التحميل عند رفع الصور
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
-
-  // معاينات الصور الجديدة في الـ Modal
-  const [avatarPreview, setAvatarPreview] = useState(null);
-  const [coverPreview, setCoverPreview] = useState(null);
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [coverFile, setCoverFile] = useState(null);
 
   // حالة فورم إضافة Progress جديد
   const [progressForm, setProgressForm] = useState({
@@ -69,8 +65,8 @@ function Profile() {
     phone: "",
     height: "",
     weight: "",
-    sport: "",          // للرياضيين
-    coachSport: "",     // للمدربين
+    sport: "", // للرياضيين
+    coachSport: "", // للمدربين
   });
 
   const loadProfileData = async () => {
@@ -81,13 +77,13 @@ function Profile() {
 
       setProfileData(userData);
 
-      // تعبئة البيانات في الفورم بناءً على شكل الاستجابة من الباك إند
+      // تعبئة البيانات في الفورم بناءً على كائن profile الفرعي القادم من الباك إند
       setFormData({
         name: userData.name || "",
-        about: userData.bio || userData.about || "",
+        about: userData.profile?.bio || userData.bio || userData.about || "",
         phone: userData.phone || "",
-        height: userData.height || "",
-        weight: userData.weight || "",
+        height: userData.profile?.height ?? userData.height ?? "",
+        weight: userData.profile?.weight ?? userData.weight ?? "",
         sport: userData.sport?._id || userData.sport?.id || "",
         coachSport: userData.sport?._id || userData.sport?.id || "",
       });
@@ -102,9 +98,9 @@ function Profile() {
         console.error("Error loading sports:", e);
       }
 
-      // 3. جلب البيانات الخاصة بالرياضي (سواء من الكائن المسترجع أو الـ Context)
-      const currentRole = userData.role || user?.role;
-      if (currentRole === "athlete" || isAthlete) {
+      // 3. جلب البيانات الخاصة بالرياضي
+      const role = userData.role || user?.role;
+      if (role === "athlete") {
         // جلب الإحصائيات الأساسية والنقاط XP
         try {
           const statsRes = await statService.getMyStats();
@@ -150,7 +146,7 @@ function Profile() {
     }
   }, [user]);
 
-  // معالجة تغيير الأفاتار
+  // معالجة تغيير الأفاتار من الزر السريع
   const handleAvatarChange = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -170,7 +166,7 @@ function Profile() {
     }
   };
 
-  // معالجة تغيير الغلاف
+  // معالجة تغيير الغلاف من الزر السريع
   const handleCoverChange = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -214,81 +210,8 @@ function Profile() {
     }));
   };
 
-  // معالجة تعديل الأفاتار في الـ Modal
-  const handleAvatarPreview = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setAvatarPreview(e.target?.result);
-      setAvatarFile(file);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // معالجة تعديل الكفر في الـ Modal
-  const handleCoverPreview = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setCoverPreview(e.target?.result);
-      setCoverFile(file);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // رفع الأفاتار الجديد
-  const handleUploadAvatar = async () => {
-    if (!avatarFile) return;
-
-    try {
-      setUploadingAvatar(true);
-      const res = await uploadAvatar(avatarFile);
-      const updatedUser = res?.data || res;
-      if (updatedUser) {
-        login(updatedUser);
-        setProfileData(updatedUser);
-      }
-      setAvatarPreview(null);
-      setAvatarFile(null);
-    } catch (error) {
-      console.error("Error uploading avatar:", error);
-    } finally {
-      setUploadingAvatar(false);
-    }
-  };
-
-  // رفع الكفر الجديد
-  const handleUploadCover = async () => {
-    if (!coverFile) return;
-
-    try {
-      setUploadingCover(true);
-      const res = await uploadCover(coverFile);
-      const updatedUser = res?.data || res;
-      if (updatedUser) {
-        login(updatedUser);
-        setProfileData(updatedUser);
-      }
-      setCoverPreview(null);
-      setCoverFile(null);
-    } catch (error) {
-      console.error("Error uploading cover:", error);
-    } finally {
-      setUploadingCover(false);
-    }
-  };
-
-  // مسح المعاينات عند الإغلاق
   const closeEditModal = () => {
     setIsEditOpen(false);
-    setAvatarPreview(null);
-    setAvatarFile(null);
-    setCoverPreview(null);
-    setCoverFile(null);
   };
 
   const handleSave = async (event) => {
@@ -309,8 +232,6 @@ function Profile() {
 
       if (updatedUser) {
         login(updatedUser);
-        // تحديث profileData فقط بدون reloading كل شيء
-        setProfileData(updatedUser);
       }
 
       // 2. تحديث الرياضة (منفصل عن updateProfile)
@@ -332,23 +253,8 @@ function Profile() {
 
       setIsEditOpen(false);
 
-      // 3. جلب البيانات المحدثة فقط (بدون تأثر على XP والـ Progress)
-      try {
-        const response = await getProfile();
-        const userData = response?.data || {};
-        setProfileData(userData);
-        setFormData({
-          name: userData.name || "",
-          about: userData.bio || userData.about || "",
-          phone: userData.phone || "",
-          height: userData.height || "",
-          weight: userData.weight || "",
-          sport: userData.sport?._id || userData.sport?.id || "",
-          coachSport: userData.sport?._id || userData.sport?.id || "",
-        });
-      } catch (error) {
-        console.error("Error refreshing profile data:", error);
-      }
+      // 3. جلب البيانات المحدثة بالكامل
+      await loadProfileData();
     } catch (error) {
       console.error("Error saving profile:", error);
     }
@@ -419,7 +325,7 @@ function Profile() {
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-          
+
           {/* زر تغيير الصورة على الغلاف */}
           <button
             type="button"
@@ -468,27 +374,34 @@ function Profile() {
               </div>
 
               <p className="text-slate-600 dark:text-slate-400 text-lg">
-                {profileData?.email || user?.email || "sports member"} • SportsHub Member
+                {profileData?.email || user?.email || "sports member"}{" "}
+                {profileData?.phone && `• ${profileData.phone}`}
               </p>
 
               {/* الشرح الشخصي Bio */}
-              {(profileData?.bio || profileData?.about) && (
+              {(profileData?.profile?.bio || profileData?.bio || profileData?.about) && (
                 <p className="text-slate-700 dark:text-slate-300 mt-3 max-w-2xl">
-                  {profileData.bio || profileData.about}
+                  {profileData.profile?.bio || profileData.bio || profileData.about}
                 </p>
               )}
 
               {/* الطول والوزن */}
-              {(profileData?.height || profileData?.weight) && (
+              {(profileData?.profile?.height || profileData?.profile?.weight || profileData?.height || profileData?.weight) && (
                 <div className="flex gap-4 mt-3 text-sm font-medium text-slate-600 dark:text-slate-400">
-                  {profileData?.height && (
+                  {(profileData?.profile?.height || profileData?.height) && (
                     <span>
-                      Height: <strong className="text-slate-900 dark:text-white">{profileData.height} cm</strong>
+                      Height:{" "}
+                      <strong className="text-slate-900 dark:text-white">
+                        {profileData.profile?.height || profileData.height} cm
+                      </strong>
                     </span>
                   )}
-                  {profileData?.weight && (
+                  {(profileData?.profile?.weight || profileData?.weight) && (
                     <span>
-                      Weight: <strong className="text-slate-900 dark:text-white">{profileData.weight} kg</strong>
+                      Weight:{" "}
+                      <strong className="text-slate-900 dark:text-white">
+                        {profileData.profile?.weight || profileData.weight} kg
+                      </strong>
                     </span>
                   )}
                 </div>
@@ -613,77 +526,6 @@ function Profile() {
             <h2 className="text-3xl font-bold mb-6 text-slate-950 dark:text-white">
               Edit Profile
             </h2>
-
-            {/* قسم تعديل الصور */}
-            <div className="mb-8 border-b border-slate-200 dark:border-slate-700 pb-6">
-              <h3 className="text-lg font-semibold text-slate-950 dark:text-white mb-4">
-                Profile Images
-              </h3>
-
-              {/* تعديل الأفاتار */}
-              <div className="mb-5">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-3">
-                  Profile Picture
-                </label>
-                <div className="flex items-center gap-4">
-                  <img
-                    src={avatarPreview || avatarUrl}
-                    alt="avatar preview"
-                    className="w-20 h-20 rounded-full object-cover border-2 border-slate-300 dark:border-slate-700"
-                  />
-                  <div className="flex-1">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleAvatarPreview}
-                      className="block w-full text-sm text-slate-600 dark:text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-red-500 file:text-white hover:file:bg-red-600"
-                    />
-                    {avatarFile && (
-                      <button
-                        type="button"
-                        onClick={handleUploadAvatar}
-                        disabled={uploadingAvatar}
-                        className="mt-2 px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white rounded-lg text-sm font-medium transition-colors"
-                      >
-                        {uploadingAvatar ? "Uploading..." : "Upload Avatar"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* تعديل الكفر */}
-              <div>
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-3">
-                  Cover Image
-                </label>
-                <div className="flex flex-col gap-3">
-                  <img
-                    src={coverPreview || coverUrl}
-                    alt="cover preview"
-                    className="w-full h-32 object-cover rounded-lg border-2 border-slate-300 dark:border-slate-700"
-                  />
-                  <div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleCoverPreview}
-                      className="block w-full text-sm text-slate-600 dark:text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-500 file:text-white hover:file:bg-blue-600"
-                    />
-                    {coverFile && (
-                      <button
-                        type="button"
-                        onClick={handleUploadCover}
-                        disabled={uploadingCover}
-                        className="mt-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-400 text-white rounded-lg text-sm font-medium transition-colors"
-                      >
-                        {uploadingCover ? "Uploading..." : "Upload Cover"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
 
             <form onSubmit={handleSave} className="space-y-5">
               <Input

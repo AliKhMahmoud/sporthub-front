@@ -13,6 +13,8 @@ import {
   User,
   X,
   Zap,
+  Trash2,
+  CheckCheck,
 } from "lucide-react";
 
 import Button from "../ui/Button";
@@ -20,12 +22,10 @@ import Button from "../ui/Button";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 
-import {
-  getNotifications,
-  markNotificationAsRead,
-} from "../../services/notificationService";
+
 
 import logo from "../../assets/logo/logo.png";
+import { deleteAllNotifications, deleteNotification, getNotifications, markAllNotificationsAsRead, markNotificationAsRead } from "../../services/notificationService";
 
 function Navbar() {
   const navigate = useNavigate();
@@ -90,32 +90,36 @@ function Navbar() {
   };
 
   const loadNotifications = async () => {
-      if (!user) {
-        setNotifications([]);
-        setUnreadNotifications(0);
-        return;
-      }
+    if (!user) {
+      setNotifications([]);
+      setUnreadNotifications(0);
+      return;
+    }
 
-      try {
-        const data = await getNotifications();
+    try {
+      const data = await getNotifications();
 
-        // حماية تامة للتأكد من أننا نتعامل مع مصفوفة بغض النظر عن شكل الاستجابة
-        const list = Array.isArray(data) 
-          ? data 
-          : (Array.isArray(data?.notifications) ? data.notifications : (Array.isArray(data?.data) ? data.data : []));
+      // حماية تامة للتأكد من أننا نتعامل مع مصفوفة بغض النظر عن شكل الاستجابة
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.notifications)
+        ? data.notifications
+        : Array.isArray(data?.data)
+        ? data.data
+        : [];
 
-        const unreadCount = list.filter(
-          (notification) => notification.read === false
-        ).length;
+      const unreadCount = list.filter(
+        (notification) => notification.read === false
+      ).length;
 
-        setNotifications(list.slice(0, 6));
-        setUnreadNotifications(unreadCount);
-      } catch (error) {
-        console.error(error);
-        setNotifications([]);
-        setUnreadNotifications(0);
-      }
-    };
+      setNotifications(list.slice(0, 6));
+      setUnreadNotifications(unreadCount);
+    } catch (error) {
+      console.error(error);
+      setNotifications([]);
+      setUnreadNotifications(0);
+    }
+  };
 
   useEffect(() => {
     loadNotifications();
@@ -123,8 +127,10 @@ function Navbar() {
 
   const handleNotificationClick = async (notification) => {
     try {
-      await markNotificationAsRead(notification.id);
-      await loadNotifications();
+      if (!notification.read) {
+        await markNotificationAsRead(notification.id);
+        await loadNotifications();
+      }
     } catch (error) {
       console.error(error);
     }
@@ -133,14 +139,28 @@ function Navbar() {
     navigate(getNotificationLink(notification));
   };
 
-  const markAllAsRead = async () => {
+  const handleMarkAllAsRead = async () => {
     try {
-      await Promise.all(
-        notifications.map((notification) =>
-          markNotificationAsRead(notification.id)
-        )
-      );
+      await markAllNotificationsAsRead();
+      await loadNotifications();
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
+  const handleDeleteNotification = async (e, id) => {
+    e.stopPropagation();
+    try {
+      await deleteNotification(id);
+      await loadNotifications();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleDeleteAllNotifications = async () => {
+    try {
+      await deleteAllNotifications();
       await loadNotifications();
     } catch (error) {
       console.error(error);
@@ -152,7 +172,6 @@ function Navbar() {
     { path: "/sports", label: "Sports" },
     { path: "/forum", label: "Forum" },
     { path: "/profile", label: "Profile" },
-    // استخدام canAccessAdmin لتضمين السوبر أدمن والأدمن في شريط التنقل الرئيسي
     ...(canAccessAdmin ? [{ path: "/admin", label: "Admin Panel" }] : []),
   ];
 
@@ -180,7 +199,7 @@ function Navbar() {
     logout();
     navigate("/");
   };
-  console.log(JSON.parse(localStorage.getItem('user')));
+
   return (
     <nav className="sticky top-0 z-50 border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-6">
@@ -244,20 +263,37 @@ function Navbar() {
                     </span>
                   )}
                 </button>
-               {isNotificationsOpen && (
+
+                {isNotificationsOpen && (
                   <div className="absolute right-0 mt-3 w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden">
                     <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
                       <h3 className="font-bold text-slate-950 dark:text-white">
                         Notifications
                       </h3>
 
-                      <button
-                        type="button"
-                        onClick={markAllAsRead}
-                        className="text-sm text-red-500 hover:text-red-400"
-                      >
-                        Mark all read
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={handleMarkAllAsRead}
+                          className="text-xs text-red-500 hover:text-red-400 flex items-center gap-1 transition"
+                          title="Mark all as read"
+                        >
+                          <CheckCheck size={14} />
+                          Mark all read
+                        </button>
+
+                        {notifications.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleDeleteAllNotifications}
+                            className="text-xs text-slate-400 hover:text-red-500 flex items-center gap-1 transition"
+                            title="Clear all"
+                          >
+                            <Trash2 size={14} />
+                            Clear
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="max-h-96 overflow-y-auto">
@@ -267,37 +303,45 @@ function Navbar() {
                         </p>
                       ) : (
                         notifications.map((notification) => (
-                          <button
+                          <div
                             key={notification.id}
-                            type="button"
                             onClick={() =>
                               handleNotificationClick(notification)
                             }
                             className={
-                              "w-full text-left p-4 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition " +
+                              "w-full text-left p-4 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer flex items-start justify-between gap-2 " +
                               (notification.read === false
                                 ? "bg-red-500/5"
                                 : "")
                             }
                           >
-                            <div className="flex items-start gap-3">
+                            <div className="flex items-start gap-3 flex-1">
                               <div className="mt-1 text-red-500">
                                 <Bell size={18} />
                               </div>
 
                               <div>
-                                <h4 className="font-bold text-slate-950 dark:text-white">
-                                  {notification.title ||
-                                    "New Notification"}
+                                <h4 className="font-bold text-slate-950 dark:text-white text-sm">
+                                  {notification.title || "New Notification"}
                                 </h4>
 
-                                <p className="text-sm text-slate-500 mt-1">
-                                  {notification.message ||
-                                    "You have a new update."}
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                  {notification.message || "You have a new update."}
                                 </p>
                               </div>
                             </div>
-                          </button>
+
+                            <button
+                              type="button"
+                              onClick={(e) =>
+                                handleDeleteNotification(e, notification.id)
+                              }
+                              className="text-slate-400 hover:text-red-500 p-1 rounded-lg transition"
+                              title="Delete"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         ))
                       )}
                     </div>
@@ -448,6 +492,7 @@ function Navbar() {
               </Link>
             )}
           </div>
+
           <button
             type="button"
             onClick={() => {

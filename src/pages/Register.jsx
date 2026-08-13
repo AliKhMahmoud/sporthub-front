@@ -9,6 +9,8 @@ import api from "../services/api";
 function Register() {
   const navigate = useNavigate();
   const [sportsOptions, setSportsOptions] = useState([]);
+  const [loading, setLoading] = useState(false); // حالة التحميل أثناء الإرسال
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -26,13 +28,13 @@ function Register() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  // جلب الرياضات من الـ Backend عبر api instance لتفادي مشاكل الـ CORS والـ URLs
+  // جلب الرياضات المتاحة من الـ Backend عند تحميل الصفحة
   useEffect(() => {
     const fetchSports = async () => {
       try {
         const response = await api.get("/sports");
         const sportsList = response.data?.data || response.data;
-        
+
         if (Array.isArray(sportsList) && sportsList.length > 0) {
           setSportsOptions(sportsList);
           setFormData((prev) => ({ ...prev, sport: sportsList[0]._id }));
@@ -76,6 +78,7 @@ function Register() {
     setError("");
     setSuccessMessage("");
 
+    // 1. التحقق الأول من الحقول الأساسية
     if (
       !formData.name.trim() ||
       !formData.email.trim() ||
@@ -85,6 +88,16 @@ function Register() {
       return;
     }
 
+    // 2. التحقق من نمط كلمة المرور (8 عناصر على الأقل تحتوي حرف كبير، صغير، رقم، ورمز خاص)
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,64}$/;
+    if (!passwordRegex.test(formData.password)) {
+      setError(
+        "Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character."
+      );
+      return;
+    }
+
+    // 3. التحقق من حقول المدرب إن كان الدور Coach
     if (formData.role === "coach") {
       if (!formData.sport) {
         setError("Sport is required for coach");
@@ -108,6 +121,8 @@ function Register() {
       }
     }
 
+    setLoading(true); // بدء التجميع والتحميل
+
     try {
       const dataToSend = {
         name: formData.name.trim(),
@@ -119,49 +134,62 @@ function Register() {
       if (formData.role === "coach") {
         dataToSend.sport = formData.sport;
         dataToSend.age = formData.age ? Number(formData.age) : undefined;
-        dataToSend.experienceYears = formData.experienceYears !== "" ? Number(formData.experienceYears) : undefined;
+        dataToSend.experienceYears =
+          formData.experienceYears !== ""
+            ? Number(formData.experienceYears)
+            : undefined;
         dataToSend.workingDays = formData.workingDays;
         dataToSend.workingHours = formData.workingHours.trim();
-        dataToSend.certificates = formData.certificates 
-          ? formData.certificates.split(",").map((c) => c.trim()).filter(Boolean)
+        dataToSend.certificates = formData.certificates
+          ? formData.certificates
+              .split(",")
+              .map((c) => c.trim())
+              .filter(Boolean)
           : [];
         dataToSend.bio = formData.bio ? formData.bio.trim() : "";
       }
 
       const response = await registerUser(dataToSend);
 
-      // إظهار رسالة الباك إند التي تفيد بضرورة توثيق الإيميل أو انتظار موافقة الأدمن
-      const msg = response?.message || "Registered successfully! Please check your email to verify your account.";
+      const msg =
+        response?.message ||
+        "Registered successfully! Please check your email to verify your account.";
       setSuccessMessage(msg);
 
-      // توجيه المستخدم لصفحة الـ Login بعد 3 ثوانٍ ليقوم بتسجيل الدخول بعد التوثيق
+      // توجيه المستخدم بعد 3 ثوانٍ إلى صفحة الدخول
       setTimeout(() => {
         navigate("/login");
       }, 3000);
-
     } catch (err) {
       console.error(err);
-      
+
       const errorData = err?.response?.data;
-      
       let errorMessage = "Registration failed";
 
       if (errorData?.errors && Array.isArray(errorData.errors)) {
-        errorMessage = errorData.errors.map(e => e.message || e).join(", ");
+        errorMessage = errorData.errors.map((e) => e.message || e).join(", ");
       } else {
-        errorMessage = 
-          errorData?.message || 
-          errorData?.error || 
-          err?.message || 
+        errorMessage =
+          errorData?.message ||
+          errorData?.error ||
+          err?.message ||
           "Registration failed";
       }
 
       setError(errorMessage);
+    } finally {
+      setLoading(false); // إيقاف التحميل مهما كانت النتيجة
     }
   };
 
   const daysOptions = [
-    "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
   ];
 
   return (
@@ -194,6 +222,7 @@ function Register() {
             placeholder="Full Name *"
             value={formData.name}
             onChange={handleChange}
+            disabled={loading}
           />
 
           <Input
@@ -202,14 +231,16 @@ function Register() {
             placeholder="Email Address *"
             value={formData.email}
             onChange={handleChange}
+            disabled={loading}
           />
 
           <Input
             name="password"
             type="password"
-            placeholder="Password (e.g. 8+ chars, Uppercase, Number) *"
+            placeholder="Password (8+ chars, Uppercase, Number, Special) *"
             value={formData.password}
             onChange={handleChange}
+            disabled={loading}
           />
 
           <div>
@@ -218,7 +249,8 @@ function Register() {
               name="role"
               value={formData.role}
               onChange={handleChange}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-white"
+              disabled={loading}
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-white disabled:opacity-50"
             >
               <option value="athlete">Athlete</option>
               <option value="coach">Coach</option>
@@ -230,14 +262,17 @@ function Register() {
               <p className="text-red-400 font-semibold">
                 Coach Application Details (Required)
               </p>
-              
+
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Sport *</label>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Sport *
+                </label>
                 <select
                   name="sport"
                   value={formData.sport}
                   onChange={handleChange}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-white"
+                  disabled={loading}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-white disabled:opacity-50"
                 >
                   {sportsOptions.map((sportItem) => (
                     <option key={sportItem._id} value={sportItem._id}>
@@ -248,36 +283,48 @@ function Register() {
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Age * (Min 16)</label>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Age * (Min 16)
+                </label>
                 <Input
                   name="age"
                   type="number"
                   placeholder="Age"
                   value={formData.age}
                   onChange={handleChange}
+                  disabled={loading}
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Years of Experience *</label>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Years of Experience *
+                </label>
                 <Input
                   name="experienceYears"
                   type="number"
                   placeholder="Years of Experience"
                   value={formData.experienceYears}
                   onChange={handleChange}
+                  disabled={loading}
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm text-slate-400">Working Days * (Select at least one)</label>
+                <label className="text-sm text-slate-400">
+                  Working Days * (Select at least one)
+                </label>
                 <div className="grid grid-cols-2 gap-2">
                   {daysOptions.map((day) => (
-                    <label key={day} className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer bg-slate-800/60 p-2 rounded-lg">
+                    <label
+                      key={day}
+                      className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer bg-slate-800/60 p-2 rounded-lg"
+                    >
                       <input
                         type="checkbox"
                         checked={formData.workingDays.includes(day)}
                         onChange={() => handleWorkingDaysChange(day)}
+                        disabled={loading}
                         className="accent-red-500"
                       />
                       {day}
@@ -287,41 +334,76 @@ function Register() {
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Working Hours *</label>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Working Hours *
+                </label>
                 <Input
                   name="workingHours"
                   placeholder="e.g. 8AM - 5PM"
                   value={formData.workingHours}
                   onChange={handleChange}
+                  disabled={loading}
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Certificates (Optional)</label>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Certificates (Optional)
+                </label>
                 <Input
                   name="certificates"
                   placeholder="Certificates (comma separated)"
                   value={formData.certificates}
                   onChange={handleChange}
+                  disabled={loading}
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Bio (Optional)</label>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Bio (Optional)
+                </label>
                 <textarea
                   name="bio"
                   value={formData.bio}
                   onChange={handleChange}
+                  disabled={loading}
                   rows="4"
                   placeholder="Tell athletes about yourself..."
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-white"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-white disabled:opacity-50"
                 />
               </div>
             </div>
           )}
 
-          <Button type="submit" className="w-full">
-            Create Account
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg
+                  className="animate-spin h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Creating Account...
+              </span>
+            ) : (
+              "Create Account"
+            )}
           </Button>
         </form>
 

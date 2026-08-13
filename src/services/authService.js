@@ -32,7 +32,7 @@ export async function logoutUser() {
 
 // 5. تأكيد الإيميل عبر الرابط
 export async function verifyEmail(token) {
-  const response = await api.post(`/auth/verify-email/${token}`);
+  const response = await api.get(`/auth/verify-email/${token}`);
   return response.data;
 }
 

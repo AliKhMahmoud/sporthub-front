@@ -23,7 +23,6 @@ import {
 
 import { getDashboardTrainingRequests, getMyTrainees } from "../services/dashboardService"; // افترضت أن دالة جلب المتدربين موجودة هنا أو في ملف الـ dashboard
 
-import { createNotification } from "../services/notificationService";
 
 function CoachTraineesManagement() {
   const navigate = useNavigate();
@@ -95,21 +94,21 @@ function CoachTraineesManagement() {
       if (!updatedRequest) return;
 
       // إرسال إشعار للمتدرب
-      await createNotification({
-        type: "training_request_status",
-        title:
-          status === "accepted"
-            ? "Training Request Accepted"
-            : "Training Request Rejected",
-        message:
-          status === "accepted"
-            ? `${user?.name || "Coach"} accepted your training request.`
-            : `${user?.name || "Coach"} rejected your training request.`,
-        userId: athleteId,
-        senderId: user?.id || user?._id,
-        requestId,
-        link: "/coaches",
-      });
+      // await createNotification({
+      //   type: "training_request_status",
+      //   title:
+      //     status === "accepted"
+      //       ? "Training Request Accepted"
+      //       : "Training Request Rejected",
+      //   message:
+      //     status === "accepted"
+      //       ? `${user?.name || "Coach"} accepted your training request.`
+      //       : `${user?.name || "Coach"} rejected your training request.`,
+      //   userId: athleteId,
+      //   senderId: user?.id || user?._id,
+      //   requestId,
+      //   link: "/coaches",
+      // });
 
       // إعادة تحميل البيانات لتحديث القوائم فوراً
       await loadDashboardData();

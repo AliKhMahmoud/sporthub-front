@@ -13,8 +13,6 @@ import { useAuth } from "../../../context/AuthContext";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
 
-import { createNotification } from "../../../services/notificationService";
-
 import {
   getPostComments,
   createPostComment,
@@ -95,21 +93,6 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
         setLiked(true);
         setLikesCount((prev) => prev + 1);
       }
-
-      if (
-        !liked &&
-        postOwnerId &&
-        String(postOwnerId) !== String(currentUserId)
-      ) {
-        await createNotification({
-          type: "like",
-          title: "New Like",
-          message: `${currentUser?.name || "Someone"} liked your post: ${post.title}`,
-          userId: postOwnerId,
-          senderId: currentUserId,
-          postId: postId,
-        });
-      }
     } catch (error) {
       console.error("Failed to toggle like:", error);
     }
@@ -128,21 +111,6 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
 
       setComments((prev) => [createdComment, ...prev]);
       setCommentText("");
-
-      if (
-        postOwnerId &&
-        String(postOwnerId) !== String(currentUserId) &&
-        currentUser
-      ) {
-        await createNotification({
-          type: "POST_COMMENTED",
-          title: "New Comment",
-          message: `${currentUser.name || "Someone"} commented on your post: "${post.title}"`,
-          userId: postOwnerId,
-          senderId: currentUserId,
-          postId: postId,
-        });
-      }
     } catch (error) {
       console.error("Error adding comment:", error);
     }

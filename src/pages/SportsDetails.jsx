@@ -9,6 +9,7 @@ import { useAuth } from "../context/AuthContext";
 import { getSportById } from "../services/sportsService";
 import { startPlan, getActiveProgress, toggleExercise } from "../services/workoutProgressService";
 import { createPlan, deletePlan, getPlans, updatePlan } from "../services/planService";
+import { CustomAlert } from "../components/CustomAlert";
 
 function SportsDetails() {
   const { id } = useParams();
@@ -29,7 +30,7 @@ function SportsDetails() {
   const [isEditing, setIsEditing] = useState(false);
   const [currentPlanId, setCurrentPlanId] = useState(null);
   
-  // حالة الفورم مطابقة لـ Joi Validation (الحروف صغيرة للمستوى + إضافة durationWeeks)
+  // حالة الفورم مطابقة لـ Joi Validation
   const [planForm, setPlanForm] = useState({
     title: "",
     description: "",
@@ -57,6 +58,7 @@ function SportsDetails() {
         }
       } catch (error) {
         console.error("Error fetching details:", error);
+        CustomAlert.error(error, "Failed to load sport details");
       } finally {
         setLoadingSport(false);
       }
@@ -73,7 +75,7 @@ function SportsDetails() {
         const res = await getActiveProgress(selectedPlan._id);
         setActiveProgress(res.data || res);
       } catch (error) {
-        // إذا كان الخطأ 404 فهذا طبيعي (لأن المستخدم لم يبدأ الخطة بعد) فلا داعي لاعتباره خطأ حقيقي
+        // إذا كان الخطأ 404 فهذا طبيعي (لأن المستخدم لم يبدأ الخطة بعد)
         setActiveProgress(null);
       } finally {
         setLoadingProgress(false);
@@ -81,16 +83,17 @@ function SportsDetails() {
     };
 
     fetchActiveProgress();
-  }, [selectedPlan]);
+  }, [selectedPlan, user?.role]);
 
   // دالة بدء الخطة التدريبية (لرياضي)
   const handleStartWorkout = async () => {
     try {
       const res = await startPlan(selectedPlan._id);
       setActiveProgress(res.data || res);
+      CustomAlert.success("Workout Started", "You have successfully started this training plan!");
     } catch (error) {
       console.error("Error starting plan:", error);
-      alert(error.response?.data?.message || "Failed to start workout");
+      CustomAlert.error(error, "Failed to start workout");
     }
   };
 
@@ -102,6 +105,7 @@ function SportsDetails() {
       setActiveProgress(res.data || res);
     } catch (error) {
       console.error("Error updating exercise:", error);
+      CustomAlert.error(error, "Failed to update exercise status");
     }
   };
 
@@ -109,7 +113,7 @@ function SportsDetails() {
   const handleOpenAddModal = () => {
     setIsEditing(false);
     setCurrentPlanId(null);
-    setFormError(""); // تصفير الأخطاء السابقة
+    setFormError("");
     setPlanForm({
       title: "",
       description: "",
@@ -122,10 +126,10 @@ function SportsDetails() {
 
   // فتح نافذة التعديل
   const handleOpenEditModal = (plan, e) => {
-    e.stopPropagation(); // منع ضغط الكرت بالكامل
+    e.stopPropagation();
     setIsEditing(true);
     setCurrentPlanId(plan._id);
-    setFormError(""); // تصفير الأخطاء السابقة
+    setFormError("");
     setPlanForm({
       title: plan.title,
       description: plan.description,
@@ -136,15 +140,15 @@ function SportsDetails() {
     setIsModalOpen(true);
   };
 
-  // حفظ الخطة (إضافة أو تعديل) مع عرض الخطأ داخل الفورم
+  // حفظ الخطة (إضافة أو تعديل)
   const handleSavePlan = async (e) => {
     e.preventDefault();
-    setFormError(""); // إعادة ضبط الخطأ قبل الإرسال
+    setFormError("");
 
     try {
       const payload = {
         ...planForm,
-        sport: sport.slug // ربط الخطة بالرياضة الحالية
+        sport: sport.slug
       };
 
       if (isEditing) {
@@ -152,33 +156,46 @@ function SportsDetails() {
         const updated = res.data || res;
         setPlans(plans.map((p) => (p._id === currentPlanId ? updated : p)));
         if (selectedPlan?._id === currentPlanId) setSelectedPlan(updated);
+        CustomAlert.success("Plan Updated", "Training plan has been updated successfully.");
       } else {
         const res = await createPlan(payload);
         const newPlan = res.data || res;
         setPlans([...plans, newPlan]);
+        CustomAlert.success("Plan Created", "New training plan has been added successfully.");
       }
 
       setIsModalOpen(false);
     } catch (error) {
       console.error("Error saving plan:", error);
-      // التقاط رسالة الخطأ القادمة من الـ Backend (Joi) وعرضها داخل الفورم
       const errorMessage = error.response?.data?.message || "Failed to save plan. Please check your inputs.";
       setFormError(errorMessage);
     }
   };
 
-  // دالة حذف الخطة
+  // دالة حذف الخطة باستخدام CustomAlert
   const handleDeletePlan = async (planId, e) => {
     e.stopPropagation();
-    if (!window.confirm("Are you sure you want to delete this plan?")) return;
+
+    const planToDelete = plans.find((p) => p._id === planId);
+    const planTitle = planToDelete ? planToDelete.title : "this plan";
+
+    const isConfirmed = await CustomAlert.confirmDelete(
+      "Delete Training Plan",
+      `Are you sure you want to delete "${planTitle}"? This action cannot be undone.`,
+      "Yes, Delete Plan"
+    );
+
+    if (!isConfirmed) return;
 
     try {
       await deletePlan(planId);
-      setPlans(plans.filter((p) => p._id !== planId));
+      setPlans((prevPlans) => prevPlans.filter((p) => p._id !== planId));
       if (selectedPlan?._id === planId) setSelectedPlan(null);
+
+      CustomAlert.success("Plan Deleted", `"${planTitle}" was deleted successfully.`);
     } catch (error) {
       console.error("Error deleting plan:", error);
-      alert(error.response?.data?.message || "Failed to delete plan");
+      CustomAlert.error(error, "Failed to delete plan");
     }
   };
 
@@ -201,15 +218,25 @@ function SportsDetails() {
     setPlanForm({ ...planForm, exercises: updatedExercises });
   };
 
+  if (loadingSport) {
+    return (
+      <main className="bg-slate-950 text-white min-h-screen py-16 flex items-center justify-center">
+        <div className="text-slate-400 animate-pulse text-lg">Loading sport details...</div>
+      </main>
+    );
+  }
+
   return (
     <main className="bg-slate-950 text-white min-h-screen py-16">
       <Container>
-        {/* القسم العلوي (الرياضة وتفاصيلها) */}
-        
-        <section ref={plansRef} className="mt-24">
+        {/* قسم خطط التدريب */}
+        <section ref={plansRef} className="mt-12">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-10">
             <div className="flex justify-between items-center mb-8">
-              <h2 className="text-4xl font-bold">Training Plans</h2>
+              <div>
+                <h2 className="text-4xl font-bold">{sport?.name || "Training"} Plans</h2>
+                <p className="text-slate-400 mt-2">{sport?.description}</p>
+              </div>
               
               {(user?.role === 'coach' || user?.role === 'admin') && (
                 <Button onClick={handleOpenAddModal} className="flex items-center gap-2 bg-red-600 hover:bg-red-700">
@@ -223,36 +250,44 @@ function SportsDetails() {
                 <div 
                   key={plan._id} 
                   onClick={() => setSelectedPlan(plan)}
-                  className="bg-slate-800 rounded-2xl p-6 border border-slate-700 hover:border-red-500 transition cursor-pointer"
+                  className="bg-slate-800 rounded-2xl p-6 border border-slate-700 hover:border-red-500 transition cursor-pointer flex flex-col justify-between"
                 >
-                  <div className="flex justify-between items-start">
-                    <span className="text-red-400 font-semibold capitalize">{plan.level}</span>
+                  <div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-red-400 font-semibold capitalize text-sm bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20">
+                        {plan.level}
+                      </span>
+                      
+                      {(user?.role === 'coach' || user?.role === 'admin') && (
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={(e) => handleOpenEditModal(plan, e)} 
+                            className="text-slate-400 hover:text-white p-1 transition"
+                            title="Edit Plan"
+                          >
+                            <Edit size={18}/>
+                          </button>
+                          <button 
+                            onClick={(e) => handleDeletePlan(plan._id, e)} 
+                            className="text-slate-400 hover:text-red-500 p-1 transition"
+                            title="Delete Plan"
+                          >
+                            <Trash2 size={18}/>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     
-                    {(user?.role === 'coach' || user?.role === 'admin') && (
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={(e) => handleOpenEditModal(plan, e)} 
-                          className="text-slate-400 hover:text-white p-1"
-                        >
-                          <Edit size={18}/>
-                        </button>
-                        <button 
-                          onClick={(e) => handleDeletePlan(plan._id, e)} 
-                          className="text-slate-400 hover:text-red-500 p-1"
-                        >
-                          <Trash2 size={18}/>
-                        </button>
-                      </div>
-                    )}
+                    <h3 className="text-2xl font-bold my-3">{plan.title}</h3>
+                    <p className="text-slate-400 mb-5 line-clamp-2 text-sm">{plan.description}</p>
                   </div>
-                  
-                  <h3 className="text-2xl font-bold my-3">{plan.title}</h3>
-                  <p className="text-slate-400 mb-5 line-clamp-2">{plan.description}</p>
-                  <p className="text-xs text-slate-500 mb-4">Duration: {plan.durationWeeks} weeks</p>
-                  
-                  <Button variant="secondary">
-                    View Details
-                  </Button>
+
+                  <div>
+                    <p className="text-xs text-slate-500 mb-4">Duration: {plan.durationWeeks} weeks</p>
+                    <Button variant="secondary" className="w-full">
+                      View Details
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -292,14 +327,14 @@ function SportsDetails() {
 
                 <h4 className="text-xl font-semibold mb-4">Exercises:</h4>
                 <div className="space-y-3">
-                  {selectedPlan.exercises.map((ex, index) => {
+                  {selectedPlan.exercises?.map((ex, index) => {
                     const isCompleted = activeProgress.completedExercises?.includes(ex.name);
                     return (
                       <div 
                         key={index} 
                         onClick={() => handleToggleExercise(ex.name)}
                         className={`flex justify-between items-center p-4 rounded-xl border cursor-pointer transition ${
-                          isCompleted ? 'bg-red-950/30 border-red-500' : 'bg-slate-800 border-slate-700'
+                          isCompleted ? 'bg-red-950/30 border-red-500' : 'bg-slate-800 border-slate-700 hover:border-slate-600'
                         }`}
                       >
                         <div>
@@ -314,7 +349,6 @@ function SportsDetails() {
               </div>
             )}
 
-            {/* إذا كان المستخدم كوتش يعرض التمارين كقائمة عادية بدون تتبع */}
             {user?.role !== 'athlete' && (
               <div className="mt-6">
                 <h4 className="text-xl font-semibold mb-4">Exercises List:</h4>
@@ -331,7 +365,7 @@ function SportsDetails() {
           </div>
         )}
 
-        {/* نافذة (Modal) إضافة أو تعديل خطة للـ Coach / Admin */}
+        {/* نافذة (Modal) إضافة أو تعديل خطة */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -342,7 +376,6 @@ function SportsDetails() {
                 </button>
               </div>
 
-              {/* عرض رسالة الخطأ داخل الفورم إذا وجدت */}
               {formError && (
                 <div className="mb-6 bg-red-950/50 border border-red-500 text-red-300 p-4 rounded-xl flex items-center gap-3 text-sm">
                   <AlertCircle size={20} className="shrink-0 text-red-500" />
@@ -376,7 +409,6 @@ function SportsDetails() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* مطابقة القيم مع Joi Schema (beginner, intermediate, advanced) */}
                   <div>
                     <label className="block text-sm font-medium mb-2">Level</label>
                     <select 
@@ -390,7 +422,6 @@ function SportsDetails() {
                     </select>
                   </div>
 
-                  {/* حقل مدة الخطة بالأسابيع المطلوبة في الـ Joi Schema */}
                   <div>
                     <label className="block text-sm font-medium mb-2">Duration (Weeks)</label>
                     <input 
