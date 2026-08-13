@@ -21,6 +21,7 @@ import {
   likePost,
   updateComment,
 } from "../../../services/forumService";
+import { CustomAlert } from "../../../components/CustomAlert";
 
 function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
   const { user: currentUser } = useAuth();
@@ -33,7 +34,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
   const [likesCount, setLikesCount] = useState(post.likes?.length || 0);
 
   const [comments, setComments] = useState([]);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false); // نافذة التفاصيل الشاملة
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isEditPostOpen, setIsEditPostOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [isLoadingComments, setIsLoadingComments] = useState(false);
@@ -48,7 +49,6 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
     postOwnerId &&
     String(postOwnerId) === String(currentUserId);
 
-  // Check if user already liked this post
   useEffect(() => {
     if (post.likes && Array.isArray(post.likes)) {
       const userLiked = post.likes.some(
@@ -113,10 +113,20 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
       setCommentText("");
     } catch (error) {
       console.error("Error adding comment:", error);
+      CustomAlert.error(error, "Failed to Add Comment");
     }
   };
 
+  // ─── 1. حذف التعليق ───
   const deleteCommentHandler = async (commentId) => {
+    const isConfirmed = await CustomAlert.confirmDelete(
+      "Delete Comment",
+      "Are you sure you want to delete this comment?",
+      "Yes, Delete"
+    );
+
+    if (!isConfirmed) return;
+
     try {
       await deletePostComment(commentId);
       setComments((prev) =>
@@ -125,22 +135,30 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
             String(comment._id || comment.id) !== String(commentId)
         )
       );
+      CustomAlert.success("Deleted!", "Comment removed successfully.");
     } catch (error) {
       console.error("Error deleting comment:", error);
+      CustomAlert.error(error, "Failed to Delete Comment");
     }
   };
 
+  // ─── 2. تعديل التعليق باستخدام CustomAlert.prompt المخصص ───
   const editComment = async (commentId) => {
     const currentComment = comments.find(
       (comment) => String(comment._id || comment.id) === String(commentId)
     );
 
-    const newText = window.prompt(
-      "Edit your comment:",
-      currentComment?.body || ""
+    // استدعاء الدايالوج المخصص بأسلوب المكونات الموحدة
+    const newText = await CustomAlert.prompt(
+      "Edit Comment",
+      "Update your comment text below:",
+      currentComment?.body || "",
+      "Write your comment here...",
+      "Save Changes"
     );
 
-    if (!newText || newText.trim() === "") return;
+    // إذا ضغط المستخدم Cancel أو لم يغير النص أو أرسل نصاً فارغاً
+    if (newText === null || newText.trim() === "" || newText.trim() === currentComment?.body) return;
 
     try {
       const response = await updateComment(commentId, {
@@ -155,8 +173,10 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
             : comment
         )
       );
+      CustomAlert.success("Updated!", "Comment updated successfully.");
     } catch (error) {
       console.error("Error updating comment:", error);
+      CustomAlert.error(error, "Failed to Update Comment");
     }
   };
 
@@ -168,11 +188,12 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
     });
   };
 
-  const savePostEdit = (event) => {
+  // ─── 3. حفظ تعديل المنشور ───
+  const savePostEdit = async (event) => {
     event.preventDefault();
     if (!canManagePost || !editPostData.title.trim() || !editPostData.body.trim()) return;
 
-    onUpdatePost(postId, editPostData);
+    await onUpdatePost(postId, editPostData);
     setIsEditPostOpen(false);
   };
 
@@ -334,14 +355,12 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
               </button>
             </div>
 
-            {/* Modal Body / Full Content & Comments */}
+            {/* Modal Body */}
             <div className="flex-1 overflow-y-auto py-4 space-y-6">
-              {/* Full Post Body */}
               <div className="text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
                 {post.body}
               </div>
 
-              {/* Likes & Comments Counter info */}
               <div className="flex items-center gap-6 text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800 pb-4">
                 <button
                   type="button"
