@@ -163,11 +163,7 @@ function Profile() {
     }
   };
 
-<<<<<<< HEAD
-  // معالجة تغيير الغلاف من الزر السريع
-=======
   // معالجة تغيير الغلاف بالضغط المباشر
->>>>>>> f42ded5ac119d256740e608aa0a3774ba82a9dfc
   const handleCoverChange = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -214,13 +210,6 @@ function Profile() {
     }));
   };
 
-<<<<<<< HEAD
-  const closeEditModal = () => {
-    setIsEditOpen(false);
-  };
-
-=======
->>>>>>> f42ded5ac119d256740e608aa0a3774ba82a9dfc
   const handleSave = async (event) => {
     event.preventDefault();
 
