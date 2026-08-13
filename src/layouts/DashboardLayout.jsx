@@ -22,11 +22,11 @@ function DashboardLayout() {
       path: "/dashboard",
       icon: LayoutDashboard,
     },
-    {
-      label: "My Trainees",
-      path: "/dashboard/trainees",
-      icon: Users,
-    },
+    // {
+    //   label: "My Trainees",
+    //   path: "/dashboard/trainees",
+    //   icon: Users,
+    // },
     {
       label: "Pending AI Plans",
       path: "/dashboard/ai-plans",

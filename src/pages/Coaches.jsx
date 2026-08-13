@@ -16,6 +16,7 @@ import {
   createTrainingRequest,
 } from "../services/trainingRequestService";
 import { startConversation } from "../services/chatService";
+import { CustomAlert } from "../components/CustomAlert";
 
 function Coaches() {
   const { user } = useAuth();
@@ -28,7 +29,7 @@ function Coaches() {
   const [requests, setRequests] = useState([]);
   const [coaches, setCoaches] = useState([]);
 
-  // 1. جلب الرياضات أولاً عند تحميل الصفحة
+  // 1. جلب الرياضات عند تحميل الصفحة
   useEffect(() => {
     const fetchSports = async () => {
       try {
@@ -48,7 +49,7 @@ function Coaches() {
     fetchSports();
   }, [API_URL]);
 
-  // 2. جلب المدربين والطلبات بناءً على الـ _id للرياضة المختارة
+  // 2. جلب المدربين والطلبات بناءً على الرياضة المختارة
   useEffect(() => {
     if (!selectedSportId) return;
 
@@ -71,21 +72,27 @@ function Coaches() {
     loadData();
   }, [selectedSportId]);
 
+  // دالة لجلب حالة الطلب مع التأكد من مقارنة جميع احتمالات الـ IDs
   const getRequestStatus = (coach) => {
-    const coachId = coach.id || coach._id;
+    const coachProfileId = coach.id || coach._id;
+    const coachUserId = coach?.user?._id || coach?.user || coach?.userId?._id || coach?.userId;
 
     const existingRequest = requests.find((request) => {
-      const reqCoachId = request.coach?._id || request.coach?.id || request.coach;
-      return String(reqCoachId) === String(coachId);
+      const reqCoachId = String(request.coach?._id || request.coach?.id || request.coach);
+      return (
+        reqCoachId === String(coachProfileId) ||
+        (coachUserId && reqCoachId === String(coachUserId))
+      );
     });
 
     return existingRequest?.status || null;
   };
 
+  // إرسال طلب تدريب جديد
   const requestTraining = async (coach) => {
     if (!currentUserId) return;
 
-    const coachId = coach.id || coach._id;
+    const coachId = coach.user?._id || coach.user || coach.id || coach._id;
 
     try {
       const result = await createTrainingRequest({
@@ -94,27 +101,77 @@ function Coaches() {
       });
 
       if (result) {
+        CustomAlert.success("Request Sent", "Training request sent successfully!");
         const updatedRequests = await getMyTrainingRequests();
         const requestsList = updatedRequests?.data?.data || updatedRequests?.data || updatedRequests;
         setRequests(Array.isArray(requestsList) ? requestsList : []);
       }
     } catch (error) {
       console.error("Error sending training request:", error);
+      CustomAlert.error(error, "Failed to Send Request");
     }
   };
 
+  // ✅ معالجة فتح المحادثة بعد التحقق من حالة الطلب واستخراج الـ User ID
   const handleOpenChat = async (coach) => {
-    const coachId = coach.id || coach._id;
-    try {
-      // إنشاء أو جلب المحادثة
-      const data = await startConversation({ coachId });
-      const convId = data?.conversation?._id || data?.conversation?.id || data?._id || data?.id;
+    const requestStatus = getRequestStatus(coach);
 
-      if (convId) {
-        navigate(`/chat/${convId}`);
+    // 🔴 1. حالة عدم وجود طلب تدريب
+    if (!requestStatus) {
+      CustomAlert.warning(
+        "Training Request Required",
+        "You must send a training request to the coach and have it accepted before starting a chat."
+      );
+      return;
+    }
+
+    // 🟡 2. حالة الطلب قيد الانتظار
+    if (requestStatus === "pending") {
+      CustomAlert.warning(
+        "Request Pending",
+        "Your training request is currently pending. You can chat once the coach accepts your request."
+      );
+      return;
+    }
+
+    // ❌ 3. حالة الطلب المرفوض
+    if (requestStatus === "rejected") {
+      CustomAlert.error(
+        "Request Rejected",
+        "The coach has declined your training request. You cannot start a chat."
+      );
+      return;
+    }
+
+    // 🟢 4. استخراج معرف حساب المستخدم للمدرب (User ID)
+    const coachUserId =
+      coach?.user?._id ||
+      coach?.user ||
+      coach?.userId?._id ||
+      coach?.userId ||
+      coach?._id ||
+      coach?.id;
+
+    try {
+      const response = await startConversation({ coachId: coachUserId });
+      
+      const resData = response?.data || response;
+      
+      // التوجيه بواسطة معرف المحادثة المسترجع
+      const conversationId = 
+        resData?.conversation?._id || 
+        resData?.conversation?.id || 
+        resData?._id || 
+        resData?.id;
+
+      if (conversationId) {
+        navigate(`/chat/${conversationId}`);
+      } else {
+        navigate(`/chat/${coachUserId}`);
       }
     } catch (error) {
       console.error("Error starting chat:", error);
+      CustomAlert.error(error, "Chat Access Denied");
     }
   };
 
@@ -272,7 +329,7 @@ function Coaches() {
                     </button>
                   )}
 
-                  {/* ✅ Send Message Button - موجودة دايماً */}
+                  {/* ✅ Send Message Button */}
                   <button
                     type="button"
                     onClick={() => handleOpenChat(coach)}

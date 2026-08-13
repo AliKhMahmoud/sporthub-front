@@ -22,10 +22,14 @@ import Button from "../ui/Button";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 
-
-
 import logo from "../../assets/logo/logo.png";
-import { deleteAllNotifications, deleteNotification, getNotifications, markAllNotificationsAsRead, markNotificationAsRead } from "../../services/notificationService";
+import {
+  deleteAllNotifications,
+  deleteNotification,
+  getNotifications,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
+} from "../../services/notificationService";
 
 function Navbar() {
   const navigate = useNavigate();
@@ -57,28 +61,39 @@ function Navbar() {
     user?.isAdmin === true;
 
   const getNotificationLink = (notification) => {
-    if (notification.link) return notification.link;
+    // 1. إذا كان الإشعار يحتوي على رابط مباشر من الباك إند
+    if (notification.link) {
+      let link = notification.link;
 
+      // تصحيح رابط الرسائل
+      if (link.includes("/messages/")) {
+        link = link.replace("/messages/", "/chat/");
+      }
+
+      // تصحيح رابط خطط الذكاء الاصطناعي
+      if (link.includes("/ai-plans")) {
+        link = isCoach ? "/dashboard/ai-plans" : "/ai-trainer";
+      }
+
+      return link;
+    }
+
+    // 2. إذا لم يكن هناك رابط مباشر، نعتمد على نوع الإشعار (type)
     if (notification.type === "message") {
       if (notification.senderId) {
         return `/chat/${notification.senderId}`;
       }
-
       return isCoach ? "/dashboard/chats" : "/my-chats";
     }
 
-    if (
-      notification.type === "like" ||
-      notification.type === "comment"
-    ) {
+    if (notification.type === "like" || notification.type === "comment") {
       if (notification.postId) {
         return `/forum?post=${notification.postId}`;
       }
-
       return "/forum";
     }
 
-    if (notification.type === "plan_review") {
+    if (notification.type === "plan_review" || notification.type === "ai_plan") {
       return isCoach ? "/dashboard/ai-plans" : "/ai-trainer";
     }
 
@@ -97,23 +112,16 @@ function Navbar() {
     }
 
     try {
-      const data = await getNotifications();
+      const response = await getNotifications();
 
-      // حماية تامة للتأكد من أننا نتعامل مع مصفوفة بغض النظر عن شكل الاستجابة
-      const list = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.notifications)
-        ? data.notifications
-        : Array.isArray(data?.data)
-        ? data.data
-        : [];
+      // استخراج البيانات بناءً على استجابة الـ API في الباك إند
+      const notificationsData =
+        response?.data?.notifications || response?.notifications || [];
+      const unread =
+        response?.data?.unreadCount ?? response?.unreadCount ?? 0;
 
-      const unreadCount = list.filter(
-        (notification) => notification.read === false
-      ).length;
-
-      setNotifications(list.slice(0, 6));
-      setUnreadNotifications(unreadCount);
+      setNotifications(notificationsData.slice(0, 6));
+      setUnreadNotifications(unread);
     } catch (error) {
       console.error(error);
       setNotifications([]);
@@ -128,7 +136,8 @@ function Navbar() {
   const handleNotificationClick = async (notification) => {
     try {
       if (!notification.read) {
-        await markNotificationAsRead(notification.id);
+        // استخدام _id ليتوافق مع MongoDB
+        await markNotificationAsRead(notification._id);
         await loadNotifications();
       }
     } catch (error) {
@@ -304,7 +313,7 @@ function Navbar() {
                       ) : (
                         notifications.map((notification) => (
                           <div
-                            key={notification.id}
+                            key={notification._id}
                             onClick={() =>
                               handleNotificationClick(notification)
                             }
@@ -334,7 +343,7 @@ function Navbar() {
                             <button
                               type="button"
                               onClick={(e) =>
-                                handleDeleteNotification(e, notification.id)
+                                handleDeleteNotification(e, notification._id)
                               }
                               className="text-slate-400 hover:text-red-500 p-1 rounded-lg transition"
                               title="Delete"

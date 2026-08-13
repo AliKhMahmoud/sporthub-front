@@ -5,7 +5,7 @@ function SectionTitle({
 }) {
   return (
     <div className={center ? "text-center" : ""}>
-      <h2 className="text-4xl font-bold mb-4 text-slate-950 dark:text-white">
+      <h2 className="text-4xl font-bold mb-4 text-slate-950 text-white dark:text-white">
         {title}
       </h2>
 

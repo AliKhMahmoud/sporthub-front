@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Zap, Plus, Camera } from "lucide-react";
+import { Zap, Camera } from "lucide-react";
 import { motion } from "framer-motion";
 
 import {
@@ -10,16 +10,14 @@ import {
 import {
   getMyProgress,
   getMyProgressStats,
-  addProgress,
 } from "../services/progressService";
 import statService from "../services/statService";
 
 import { useAuth } from "../context/AuthContext";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
-import { getAllSports } from "../services/sportsService";
 import { uploadAvatar, uploadCover } from "../services/uploadService";
-import { CustomAlert } from "../components/CustomAlert";
+import { getAllSports } from "../services/sportsService";
 
 function Profile() {
   const { user, login } = useAuth();
@@ -28,7 +26,6 @@ function Profile() {
   const coverInputRef = useRef(null);
 
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isAddProgressOpen, setIsAddProgressOpen] = useState(false);
 
   const [profileData, setProfileData] = useState(null);
   const [progressStats, setProgressStats] = useState([]);
@@ -44,14 +41,6 @@ function Profile() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
 
-  // حالة فورم إضافة Progress جديد
-  const [progressForm, setProgressForm] = useState({
-    sport: "",
-    metric: "weight",
-    value: "",
-    note: "",
-  });
-
   const [xpData, setXpData] = useState({
     xp: 0,
     level: 1,
@@ -66,17 +55,19 @@ function Profile() {
     phone: "",
     height: "",
     weight: "",
-    sport: "",        // للرياضيين
-    coachSport: "",   // للمدربين
+    sport: "", // للرياضيين
+    coachSport: "", // للمدربين
   });
 
   const loadProfileData = async () => {
     try {
+      // 1. جلب بيانات البروفايل الرئيسية من الـ API
       const response = await getProfile();
       const userData = response?.data || {};
 
       setProfileData(userData);
 
+      // تعبئة البيانات في الفورم بناءً على كائن profile الفرعي القادم من الباك إند
       setFormData({
         name: userData.name || "",
         about: userData.profile?.bio || userData.bio || userData.about || "",
@@ -87,6 +78,7 @@ function Profile() {
         coachSport: userData.sport?._id || userData.sport?.id || "",
       });
 
+      // 2. جلب قائمة الرياضات
       try {
         const sportsRes = await getAllSports();
         setAvailableSports(
@@ -96,8 +88,10 @@ function Profile() {
         console.error("Error loading sports:", e);
       }
 
-      const currentRole = userData.role || user?.role;
-      if (currentRole === "athlete" || isAthlete) {
+      // 3. جلب البيانات الخاصة بالرياضي
+      const role = userData.role || user?.role;
+      if (role === "athlete") {
+        // جلب الإحصائيات الأساسية والنقاط XP
         try {
           const statsRes = await statService.getMyStats();
           if (statsRes) {
@@ -113,6 +107,7 @@ function Profile() {
           console.error("Error loading athlete stats:", statsError);
         }
 
+        // جلب سجلات التقدم
         try {
           const progressRes = await getMyProgress();
           const progressData = progressRes?.data || [];
@@ -121,6 +116,7 @@ function Profile() {
           console.error("Error loading progress history:", progError);
         }
 
+        // جلب إحصائيات التقدم (Latest, Best, Average)
         try {
           const progressStatsRes = await getMyProgressStats();
           const statsData = progressStatsRes?.data || [];
@@ -140,7 +136,7 @@ function Profile() {
     }
   }, [user]);
 
-  // معالجة تغيير الأفاتار بالضغط المباشر
+  // معالجة تغيير الأفاتار من الزر السريع
   const handleAvatarChange = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -153,17 +149,14 @@ function Profile() {
         login(updatedUser);
       }
       await loadProfileData();
-      CustomAlert.success("Profile picture updated successfully!");
     } catch (error) {
-      const errorMsg = error.response?.data?.message || "Failed to update profile picture";
-      CustomAlert.error(errorMsg);
+      console.error("Error uploading avatar:", error);
     } finally {
       setUploadingAvatar(false);
-      event.target.value = "";
     }
   };
 
-  // معالجة تغيير الغلاف بالضغط المباشر
+  // معالجة تغيير الغلاف من الزر السريع
   const handleCoverChange = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -176,13 +169,10 @@ function Profile() {
         login(updatedUser);
       }
       await loadProfileData();
-      CustomAlert.success("Cover photo updated successfully!");
     } catch (error) {
-      const errorMsg = error.response?.data?.message || "Failed to update cover photo";
-      CustomAlert.error(errorMsg);
+      console.error("Error uploading cover:", error);
     } finally {
       setUploadingCover(false);
-      event.target.value = "";
     }
   };
 
@@ -202,18 +192,15 @@ function Profile() {
     }));
   };
 
-  const handleProgressChange = (event) => {
-    const { name, value } = event.target;
-    setProgressForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  const closeEditModal = () => {
+    setIsEditOpen(false);
   };
 
   const handleSave = async (event) => {
     event.preventDefault();
 
     try {
+      // 1. تحديث بيانات البروفايل الأساسية
       const dataToSend = {
         name: formData.name,
         bio: formData.about,
@@ -227,50 +214,35 @@ function Profile() {
 
       if (updatedUser) {
         login(updatedUser);
-        setProfileData(updatedUser);
       }
 
+      // 2. تحديث الرياضة (منفصل عن updateProfile)
       if (isAthlete && formData.sport) {
-        await assignSport(formData.sport);
+        try {
+          await assignSport(formData.sport);
+        } catch (sportError) {
+          console.error("Error assigning sport:", sportError);
+        }
       }
 
       if (isCoach && formData.coachSport) {
-        await assignSport(formData.coachSport);
+        try {
+          await assignSport(formData.coachSport);
+        } catch (sportError) {
+          console.error("Error assigning coach sport:", sportError);
+        }
       }
 
       setIsEditOpen(false);
+
+      // 3. جلب البيانات المحدثة بالكامل
       await loadProfileData();
-      CustomAlert.success("Profile updated successfully!");
     } catch (error) {
-      const errorMsg = error.response?.data?.message || "Failed to update profile";
-      CustomAlert.error(errorMsg);
+      console.error("Error saving profile:", error);
     }
   };
 
-  const handleSaveProgress = async (event) => {
-    event.preventDefault();
-    try {
-      const payload = {
-        traineeId: user?._id || user?.id,
-        sportId: progressForm.sport,
-        metric: progressForm.metric,
-        value: Number(progressForm.value),
-        note: progressForm.note,
-      };
-
-      const res = await addProgress(payload);
-      if (res?.success || res) {
-        setIsAddProgressOpen(false);
-        setProgressForm({ sport: "", metric: "weight", value: "", note: "" });
-        await loadProfileData();
-        CustomAlert.success("Progress record added successfully!");
-      }
-    } catch (error) {
-      const errorMsg = error.response?.data?.message || "Failed to add progress record";
-      CustomAlert.error(errorMsg);
-    }
-  };
-
+  // تعيين الصور الافتراضية
   const avatarUrl =
     profileData?.avatar ||
     user?.avatar ||
@@ -283,6 +255,7 @@ function Profile() {
 
   return (
     <main className="max-w-7xl mx-auto px-6 py-12">
+      {/* مدخلات ملفات مخفية للرفع */}
       <input
         type="file"
         ref={avatarInputRef}
@@ -303,7 +276,7 @@ function Profile() {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm dark:shadow-none"
       >
-        {/* الغلاف */}
+        {/* الغلاف (Cover Image) */}
         <div className="h-72 overflow-hidden relative group">
           <img
             src={coverUrl}
@@ -311,7 +284,8 @@ function Profile() {
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-          
+
+          {/* زر تغيير الصورة على الغلاف */}
           <button
             type="button"
             onClick={() => coverInputRef.current?.click()}
@@ -326,7 +300,7 @@ function Profile() {
         </div>
 
         <div className="px-8 pb-10 relative">
-          {/* الصورة الشخصية */}
+          {/* الصورة الشخصية (Avatar) */}
           <div className="absolute -top-20">
             <div className="relative w-40 h-40 group">
               <img
@@ -334,6 +308,7 @@ function Profile() {
                 alt={profileData?.name || "profile"}
                 className="w-40 h-40 rounded-full border-4 border-white dark:border-slate-950 object-cover shadow-xl"
               />
+              {/* زر تغيير الأفاتار فوق الصورة */}
               <button
                 type="button"
                 onClick={() => avatarInputRef.current?.click()}
@@ -362,13 +337,15 @@ function Profile() {
                 {profileData?.phone && `• ${profileData.phone}`}
               </p>
 
-              {(profileData?.bio || profileData?.about) && (
+              {/* الشرح الشخصي Bio */}
+              {(profileData?.profile?.bio || profileData?.bio || profileData?.about) && (
                 <p className="text-slate-700 dark:text-slate-300 mt-3 max-w-2xl">
                   {profileData.profile?.bio || profileData.bio || profileData.about}
                 </p>
               )}
 
-              {(profileData?.height || profileData?.weight) && (
+              {/* الطول والوزن */}
+              {(profileData?.profile?.height || profileData?.profile?.weight || profileData?.height || profileData?.weight) && (
                 <div className="flex gap-4 mt-3 text-sm font-medium text-slate-600 dark:text-slate-400">
                   {(profileData?.profile?.height || profileData?.height) && (
                     <span>
@@ -421,6 +398,7 @@ function Profile() {
 
           {isAthlete && (
             <>
+              {/* قسم مستويات الـ XP */}
               <div className="mt-10 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-6">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
                   <div>
@@ -445,17 +423,12 @@ function Profile() {
                 </p>
               </div>
 
+              {/* قسم مقاييس الأداء والإحصائيات */}
               <div className="mt-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-bold text-slate-950 dark:text-white">
                     Performance Metrics & Stats
                   </h3>
-                  <Button
-                    onClick={() => setIsAddProgressOpen(true)}
-                    className="flex items-center gap-2 text-sm py-2 px-4"
-                  >
-                    <Plus size={16} /> Add Progress
-                  </Button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -489,7 +462,7 @@ function Profile() {
                     ))
                   ) : (
                     <p className="text-slate-500 dark:text-slate-400 col-span-3 text-center py-4">
-                      No progress metrics recorded yet. Start adding your progress!
+                      No progress metrics recorded yet. Your coach will log your progress here!
                     </p>
                   )}
                 </div>
@@ -499,7 +472,7 @@ function Profile() {
         </div>
       </motion.section>
 
-      {/* نافذة التعديل النصي فقط */}
+      {/* نافذة التعديل (Edit Profile Modal) */}
       {isEditOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center px-6 z-50">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto">
@@ -598,100 +571,7 @@ function Profile() {
                   type="button"
                   variant="outline"
                   className="flex-1"
-                  onClick={() => setIsEditOpen(false)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* نافذة إضافة قياس تقدم جديد */}
-      {isAddProgressOpen && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center px-6 z-50">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 w-full max-w-md">
-            <h2 className="text-2xl font-bold mb-6 text-slate-950 dark:text-white">
-              Add New Progress
-            </h2>
-
-            <form onSubmit={handleSaveProgress} className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-1">
-                  Sport
-                </label>
-                <select
-                  name="sport"
-                  value={progressForm.sport}
-                  onChange={handleProgressChange}
-                  required
-                  className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-slate-900 dark:text-white"
-                >
-                  <option value="">Select Sport</option>
-                  {availableSports.map((s) => (
-                    <option key={s._id} value={s._id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-1">
-                  Metric Type
-                </label>
-                <select
-                  name="metric"
-                  value={progressForm.metric}
-                  onChange={handleProgressChange}
-                  className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-slate-900 dark:text-white"
-                >
-                  <option value="weight">Weight (kg)</option>
-                  <option value="reps">Reps</option>
-                  <option value="time">Time (min/sec)</option>
-                  <option value="distance">Distance (km/m)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-1">
-                  Value
-                </label>
-                <Input
-                  name="value"
-                  type="number"
-                  step="any"
-                  value={progressForm.value}
-                  onChange={handleProgressChange}
-                  placeholder="Enter value (e.g., 75)"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-1">
-                  Note (Optional)
-                </label>
-                <textarea
-                  name="note"
-                  value={progressForm.note}
-                  onChange={handleProgressChange}
-                  rows="2"
-                  placeholder="Add any note..."
-                  className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div className="flex gap-4 pt-2">
-                <Button type="submit" className="flex-1">
-                  Add Record
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setIsAddProgressOpen(false)}
+                  onClick={closeEditModal}
                 >
                   Cancel
                 </Button>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { CheckCircle, X, Edit, Trash2, Plus, AlertCircle } from "lucide-react";
+import { CheckCircle, X, Edit, Trash2, Plus, AlertCircle, RotateCcw } from "lucide-react";
 
 import Container from "../components/ui/Container";
 import Button from "../components/ui/Button";
@@ -94,6 +94,26 @@ function SportsDetails() {
     } catch (error) {
       console.error("Error starting plan:", error);
       CustomAlert.error(error, "Failed to start workout");
+    }
+  };
+
+  // دالة إعادة تشغيل الخطة (Reset Workout)
+  const handleRestartWorkout = async () => {
+    const isConfirmed = await CustomAlert.confirmDelete(
+      "Restart Workout Plan",
+      "Are you sure you want to reset your progress for this plan?",
+      "Yes, Restart"
+    );
+
+    if (!isConfirmed) return;
+
+    try {
+      const res = await startPlan(selectedPlan._id);
+      setActiveProgress(res.data || res);
+      CustomAlert.success("Workout Restarted", "Your progress for this plan has been reset.");
+    } catch (error) {
+      console.error("Error restarting plan:", error);
+      CustomAlert.error(error, "Failed to restart workout");
     }
   };
 
@@ -245,52 +265,62 @@ function SportsDetails() {
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {plans.map((plan) => (
-                <div 
-                  key={plan._id} 
-                  onClick={() => setSelectedPlan(plan)}
-                  className="bg-slate-800 rounded-2xl p-6 border border-slate-700 hover:border-red-500 transition cursor-pointer flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex justify-between items-start">
-                      <span className="text-red-400 font-semibold capitalize text-sm bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20">
-                        {plan.level}
-                      </span>
+            {/* عرض الخطط أو رسالة توضيحية في حال كانت القائمة فارغة */}
+            {plans.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {plans.map((plan) => (
+                  <div 
+                    key={plan._id} 
+                    onClick={() => setSelectedPlan(plan)}
+                    className="bg-slate-800 rounded-2xl p-6 border border-slate-700 hover:border-red-500 transition cursor-pointer flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex justify-between items-start">
+                        <span className="text-red-400 font-semibold capitalize text-sm bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20">
+                          {plan.level}
+                        </span>
+                        
+                        {(user?.role === 'coach' || user?.role === 'admin') && (
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={(e) => handleOpenEditModal(plan, e)} 
+                              className="text-slate-400 hover:text-white p-1 transition"
+                              title="Edit Plan"
+                            >
+                              <Edit size={18}/>
+                            </button>
+                            <button 
+                              onClick={(e) => handleDeletePlan(plan._id, e)} 
+                              className="text-slate-400 hover:text-red-500 p-1 transition"
+                              title="Delete Plan"
+                            >
+                              <Trash2 size={18}/>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                       
-                      {(user?.role === 'coach' || user?.role === 'admin') && (
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={(e) => handleOpenEditModal(plan, e)} 
-                            className="text-slate-400 hover:text-white p-1 transition"
-                            title="Edit Plan"
-                          >
-                            <Edit size={18}/>
-                          </button>
-                          <button 
-                            onClick={(e) => handleDeletePlan(plan._id, e)} 
-                            className="text-slate-400 hover:text-red-500 p-1 transition"
-                            title="Delete Plan"
-                          >
-                            <Trash2 size={18}/>
-                          </button>
-                        </div>
-                      )}
+                      <h3 className="text-2xl font-bold my-3">{plan.title}</h3>
+                      <p className="text-slate-400 mb-5 line-clamp-2 text-sm">{plan.description}</p>
                     </div>
-                    
-                    <h3 className="text-2xl font-bold my-3">{plan.title}</h3>
-                    <p className="text-slate-400 mb-5 line-clamp-2 text-sm">{plan.description}</p>
-                  </div>
 
-                  <div>
-                    <p className="text-xs text-slate-500 mb-4">Duration: {plan.durationWeeks} weeks</p>
-                    <Button variant="secondary" className="w-full">
-                      View Details
-                    </Button>
+                    <div>
+                      <p className="text-xs text-slate-500 mb-4">Duration: {plan.durationWeeks} weeks</p>
+                      <Button variant="secondary" className="w-full">
+                        View Details
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-slate-800/40 rounded-2xl border border-slate-800">
+                <p className="text-slate-400 text-lg">No training plans available for this sport yet.</p>
+                {(user?.role === 'coach' || user?.role === 'admin') && (
+                  <p className="text-slate-500 text-sm mt-1">Click the button above to add the first plan.</p>
+                )}
+              </div>
+            )}
           </div>
         </section>
 
@@ -317,6 +347,13 @@ function SportsDetails() {
               <div className="mt-6">
                 <div className="flex justify-between items-center mb-4">
                   <span className="text-lg font-semibold">Progress: {activeProgress.progressPercentage}%</span>
+                  <button 
+                    onClick={handleRestartWorkout}
+                    className="flex items-center gap-2 text-sm text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/50 px-3 py-1.5 rounded-xl transition"
+                    title="Restart Plan"
+                  >
+                    <RotateCcw size={16} /> Restart Plan
+                  </button>
                 </div>
                 <div className="w-full bg-slate-800 h-3 rounded-full mb-6 overflow-hidden">
                   <div 

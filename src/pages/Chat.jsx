@@ -33,42 +33,65 @@ function Chat() {
         setLoading(true);
         setErrorMsg("");
 
-        // 1️⃣ إنشاء أو جلب المحادثة للحصول على conversationId
-        const payload =
-          user?.role === "athlete"
-            ? { coachId: recipientId }
-            : { athleteId: recipientId };
+        let activeConvId = null;
 
-        const convRes = await startConversation(payload);
-        const convData = convRes?.data || convRes?.conversation || convRes;
-        const convId = convData?._id || convData?.id;
-
-        if (!convId) {
-          if (isMounted) setErrorMsg("Could not load conversation.");
-          return;
-        }
-
-        if (isMounted) setConversationId(convId);
-
-        // 2️⃣ جلب الرسائل
-        const msgRes = await getChatMessages(convId);
-
-        if (isMounted) {
+        // 1️⃣ محاولة جلب الرسائل مباشرة على أساس أن recipientId قد يكون conversationId
+        try {
+          const msgRes = await getChatMessages(recipientId);
           const messagesList =
             msgRes?.data?.messages || msgRes?.messages || msgRes?.data || msgRes || [];
-          setMessages(Array.isArray(messagesList) ? messagesList : []);
 
-          const receiverData =
-            msgRes?.data?.receiver || msgRes?.receiver || msgRes?.participant || null;
-          if (receiverData) {
-            setReceiver(receiverData);
+          if (Array.isArray(messagesList)) {
+            activeConvId = recipientId;
+            if (isMounted) {
+              setConversationId(recipientId);
+              setMessages(messagesList);
+              const receiverData =
+                msgRes?.data?.receiver || msgRes?.receiver || msgRes?.participant || null;
+              if (receiverData) setReceiver(receiverData);
+            }
+          }
+        } catch {
+          // إذا لم يكن conversationId، ننتقل للخطوة الثانية لإنشاء/جلب المحادثة
+          activeConvId = null;
+        }
+
+        // 2️⃣ إذا لم نجد محادثة قائمة، نستخدم startConversation
+        if (!activeConvId) {
+          const payload =
+            user?.role === "athlete"
+              ? { coachId: recipientId }
+              : { athleteId: recipientId };
+
+          const convRes = await startConversation(payload);
+          const convData = convRes?.data || convRes?.conversation || convRes;
+          const convId = convData?._id || convData?.id;
+
+          if (!convId) {
+            if (isMounted) setErrorMsg("Could not load conversation.");
+            return;
+          }
+
+          if (isMounted) setConversationId(convId);
+
+          // جلب الرسائل للمحادثة المكتشفة حديثاً
+          const msgRes = await getChatMessages(convId);
+          if (isMounted) {
+            const messagesList =
+              msgRes?.data?.messages || msgRes?.messages || msgRes?.data || msgRes || [];
+            setMessages(Array.isArray(messagesList) ? messagesList : []);
+
+            const receiverData =
+              msgRes?.data?.receiver || msgRes?.receiver || msgRes?.participant || null;
+            if (receiverData) setReceiver(receiverData);
           }
         }
       } catch (error) {
         console.error("Error initializing chat:", error);
         if (isMounted) {
           const backendMsg =
-            error?.response?.data?.message || "Failed to load chat.";
+            error?.response?.data?.message ||
+            "Chat is only available after the coach accepts a training request.";
           setErrorMsg(backendMsg);
         }
       } finally {
