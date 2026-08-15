@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 
-import ForumPostCard from "../features/forum/components/ForumPostCard";
+// import ForumPostCard from "../features/forum/components/ForumPostCard";
 import SportCard from "../components/sports/SportCard";
 import Button from "../components/ui/Button";
 import Container from "../components/ui/Container";
@@ -12,6 +12,7 @@ import { useAuth } from "../context/AuthContext";
 import { sports } from "../data/sportsData";
 import heroImage from "../assets/sports/sports-hero.jpg";
 import { getHomeData } from "../services/homeService";
+// import { likePost, unlikePost, updateForumPost, deleteForumPost } from "../services/forumService";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 40 },
@@ -33,31 +34,138 @@ function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadHomeData = async () => {
       try {
         const response = await getHomeData();
-        // التعامل مع استجابة الباك إند
         const data = response?.data || response || {};
 
-        setHomeStats({
-          totalAthletes: data.totalAthletes || 0,
-          totalCoaches: data.totalCoaches || 0,
-          totalSports: data.totalSports || 0,
-          totalPlans: data.totalPlans || 0,
-        });
+        if (isMounted) {
+          setHomeStats({
+            totalAthletes: data.totalAthletes || 0,
+            totalCoaches: data.totalCoaches || 0,
+            totalSports: data.totalSports || 0,
+            totalPlans: data.totalPlans || 0,
+          });
 
-        setMostActiveSports(data.mostActiveSports || []);
-        setLatestPosts(data.recentPosts || []);
-        setRecentAiPlans(data.recentAIPlans || []);
+          setMostActiveSports(data.mostActiveSports || []);
+          setLatestPosts(data.recentPosts?.filter(Boolean) || []);
+          setRecentAiPlans(data.recentAIPlans || []);
+        }
       } catch (error) {
-        console.error("Failed to load home data:", error);
+        if (isMounted) {
+          console.error("Failed to load home data:", error);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadHomeData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
+
+  // const handlePostUpdate = (updatedPost) => {
+  //   setLatestPosts((prevPosts) =>
+  //     prevPosts.map((post) =>
+  //       (post._id || post.id) === (updatedPost._id || updatedPost.id)
+  //         ? updatedPost
+  //         : post
+  //     )
+  //   );
+  // };
+
+  // دالة مساعدة لمعرفة هل المستخدم قام بالتعجيب بالمنشور أم لا
+  const checkIfLiked = (likesArray, currentUserId) => {
+    if (!Array.isArray(likesArray) || !currentUserId) return false;
+    
+    const userIdStr = String(currentUserId);
+    return likesArray.some((item) => {
+      if (!item) return false;
+      // إذا كان العنصر عبارة عن ID مباشر (String) أو Object بداخله _id أو id
+      const itemId = typeof item === "object" ? (item._id || item.id) : item;
+      return String(itemId) === userIdStr;
+    });
+  };
+
+  // const handleToggleLike = async (post) => {
+  //   const postId = post._id || post.id;
+  //   const currentUserId = user?._id || user?.id;
+
+  //   // فحص دقيق جداً لمعرفة هل منشور معجب به حالياً أم لا
+  //   const isLiked = checkIfLiked(post.likes, currentUserId);
+
+  //   try {
+  //     // إذا كان معجب به نستدعي unLike، وإلا نستدعي like
+  //     const apiCall = isLiked ? unlikePost : likePost;
+  //     const response = await apiCall(postId);
+
+  //     const updatedPost = response?.data || response;
+
+  //     // تحديث الـ State بالبيانات القادمة من الـ API
+  //     if (updatedPost && (updatedPost._id || updatedPost.id)) {
+  //       handlePostUpdate(updatedPost);
+  //     } else {
+  //       // Optimistic fallback
+  //       setLatestPosts((prevPosts) =>
+  //         prevPosts.map((p) => {
+  //           if ((p._id || p.id) === postId) {
+  //             const currentLikes = p.likes || [];
+  //             const newLikes = isLiked
+  //               ? currentLikes.filter((item) => {
+  //                   const id = typeof item === "object" ? (item._id || item.id) : item;
+  //                   return String(id) !== String(currentUserId);
+  //                 })
+  //               : [...currentLikes, currentUserId];
+
+  //             return { ...p, likes: newLikes };
+  //           }
+  //           return p;
+  //         })
+  //       );
+  //     }
+  //   } catch (error) {
+  //     console.error("Failed to toggle like:", error);
+  //   }
+  // };
+
+  // التعامل مع التعديل
+  // const handleEditPost = async (postId, editData) => {
+  //   try {
+  //     const response = await updateForumPost(postId, editData);
+  //     const updatedPost = response?.data || response;
+
+  //     if (updatedPost && (updatedPost._id || updatedPost.id)) {
+  //       handlePostUpdate(updatedPost);
+  //     } else {
+  //       setLatestPosts((prevPosts) =>
+  //         prevPosts.map((p) =>
+  //           (p._id || p.id) === postId ? { ...p, ...editData } : p
+  //         )
+  //       );
+  //     }
+  //   } catch (error) {
+  //     console.error("Failed to update post:", error);
+  //   }
+  // };
+
+  // التعامل مع الحذف
+  // const handleDeletePost = async (postId) => {
+  //   try {
+  //     await deleteForumPost(postId);
+  //     setLatestPosts((prevPosts) =>
+  //       prevPosts.filter((p) => (p._id || p.id) !== postId)
+  //     );
+  //   } catch (error) {
+  //     console.error("Failed to delete post:", error);
+  //   }
+  // };
 
   const platformHighlights = [
     {
@@ -332,7 +440,7 @@ function Home() {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {mostActiveSports.map((sport) => (
               <motion.div
-                key={sport._id}
+                key={sport._id || sport.id}
                 variants={fadeUp}
                 initial="hidden"
                 whileInView="visible"
@@ -384,7 +492,7 @@ function Home() {
           <div className="grid md:grid-cols-3 gap-6">
             {recentAiPlans.slice(0, 3).map((plan) => (
               <motion.div
-                key={plan._id}
+                key={plan._id || plan.id}
                 variants={fadeUp}
                 initial="hidden"
                 whileInView="visible"
@@ -420,8 +528,8 @@ function Home() {
         )}
       </Container>
 
-      {/* Latest Forum Posts */}
-      <Container className="pb-20">
+      {/* Latest Forum Posts Section */}
+      {/* <Container className="pb-20">
         <motion.div
           variants={fadeUp}
           initial="hidden"
@@ -449,22 +557,31 @@ function Home() {
             <p className="text-slate-500">No forum posts yet.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
             {latestPosts.slice(0, 3).map((post, index) => (
               <motion.div
-                key={post._id || index}
+                key={post._id || post.id || index}
                 variants={fadeUp}
                 initial="hidden"
                 whileInView="visible"
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: index * 0.15 }}
+                className="h-full flex flex-col"
               >
-                <ForumPostCard post={post} />
+                <ForumPostCard
+                  post={post}
+                  onUpdate={handlePostUpdate}
+                  onLikeToggle={() => handleToggleLike(post)}
+                  onEditPost={(editData) =>
+                    handleEditPost(post._id || post.id, editData)
+                  }
+                  onDeletePost={() => handleDeletePost(post._id || post.id)}
+                />
               </motion.div>
             ))}
           </div>
         )}
-      </Container>
+      </Container> */}
 
       {/* Community Activity */}
       <Container className="pb-20">

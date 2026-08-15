@@ -7,6 +7,7 @@ import {
   Trophy,
   UserPlus,
   MessageCircle,
+  Phone, // 🟢 تم إضافة أيقونة الهاتف
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -251,6 +252,12 @@ function Coaches() {
                     <p>
                       <strong>Age:</strong>{" "}
                       {coach.age || "Not specified"}
+                    </p>
+
+                    {/* 🟢 عرض رقم الهاتف هنا */}
+                    <p className="flex items-center gap-2">
+                      <Phone size={17} />
+                      {coach.phone || coach.phoneNumber || "Phone not specified"}
                     </p>
 
                     <p>

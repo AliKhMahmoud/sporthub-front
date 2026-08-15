@@ -66,10 +66,10 @@ function Forum() {
       }
 
       const responseData = response?.data || response;
-      const fetchedPosts = responseData?.posts || [];
+      const fetchedPosts = responseData?.posts || responseData || [];
       const pagination = responseData?.pagination || {};
-
-      setPosts(fetchedPosts);
+      console.log("Response from API:", responseData);
+      setPosts(Array.isArray(fetchedPosts) ? fetchedPosts : []);
       setCurrentPage(pagination.page || 1);
       setTotalPages(pagination.pages || 1);
     } catch (error) {
@@ -109,7 +109,10 @@ function Forum() {
     if (!canCreatePost) return;
     try {
       await createForumPost(postData);
-      CustomAlert.success("Post Created", "Your post has been published successfully.");
+      CustomAlert.success(
+        "Post Created",
+        "Your post has been published successfully."
+      );
       setCurrentPage(1);
       await loadPosts(activeCategory, 1);
     } catch (error) {
@@ -120,7 +123,6 @@ function Forum() {
 
   // ─── 1. دالة تأكيد وحذف المنشور عبر CustomAlert ───
   const deletePost = async (postId) => {
-    // إظهار نافذة التأكيد الاحترافية قبل الحذف
     const isConfirmed = await CustomAlert.confirmDelete(
       "Delete Post",
       "Are you sure you want to delete this post? This action cannot be undone.",
@@ -131,7 +133,10 @@ function Forum() {
 
     try {
       await deleteForumPost(postId);
-      CustomAlert.success("Deleted Successfully", "The post has been deleted.");
+      CustomAlert.success(
+        "Deleted Successfully",
+        "The post has been deleted."
+      );
       await loadPosts(activeCategory, currentPage);
     } catch (error) {
       console.error("Failed to delete post:", error);
@@ -141,7 +146,6 @@ function Forum() {
 
   // ─── 2. دالة تأكيد وتحديث المنشور عبر CustomAlert ───
   const updatePost = async (postId, updatedData) => {
-    // إظهار نافذة تأكيد التحديث قبل حفظ التغييرات
     const isConfirmed = await CustomAlert.confirmUpdate(
       "Update Post",
       "Are you sure you want to save changes to this post?"
@@ -151,12 +155,28 @@ function Forum() {
 
     try {
       await updateForumPost(postId, updatedData);
-      CustomAlert.success("Updated Successfully", "Post details have been updated.");
+      CustomAlert.success(
+        "Updated Successfully",
+        "Post details have been updated."
+      );
       await loadPosts(activeCategory, currentPage);
     } catch (error) {
       console.error("Failed to update post:", error);
       CustomAlert.error(error, "Failed to Update Post");
     }
+  };
+
+  // 🟢 3. دالة تحديث عدد التعليقات أو كائن المنشور لحظياً عند إضافة/تعديل/حذف تعليق
+  const handlePostChange = (updatedPost) => {
+    setPosts((prevPosts) =>
+      prevPosts.map((p) => {
+        const currentId = p._id || p.id;
+        const targetId = updatedPost._id || updatedPost.id;
+        return String(currentId) === String(targetId)
+          ? { ...p, ...updatedPost }
+          : p;
+      })
+    );
   };
 
   return (
@@ -218,7 +238,10 @@ function Forum() {
           {/* Main Posts Area */}
           <div className="lg:col-span-3">
             {canCreatePost ? (
-              <CreatePostForm onCreatePost={createPost} sportsList={sports} />
+              <CreatePostForm
+                onCreatePost={createPost}
+                sportsList={sports}
+              />
             ) : (
               <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 mb-6">
                 <p className="text-slate-600 dark:text-slate-400">
@@ -249,10 +272,12 @@ function Forum() {
                           : ""
                       }
                     >
+                      {/* ─── نمرير onPostUpdated prop ─── */}
                       <ForumPostCard
                         post={post}
                         onDeletePost={deletePost}
                         onUpdatePost={updatePost}
+                        onPostUpdated={handlePostChange}
                       />
                     </div>
                   );

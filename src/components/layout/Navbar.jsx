@@ -65,6 +65,12 @@ function Navbar() {
     if (notification.link) {
       let link = notification.link;
 
+      // تصحيح رابط المنشورات إذا كان يأتي بصيغة /forum/posts/
+      if (link.includes("/forum/posts/")) {
+        const postId = link.split("/forum/posts/")[1];
+        return `/forum?post=${postId}`;
+      }
+
       // تصحيح رابط الرسائل
       if (link.includes("/messages/")) {
         link = link.replace("/messages/", "/chat/");

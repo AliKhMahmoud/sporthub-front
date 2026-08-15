@@ -51,13 +51,18 @@ function CoachChats() {
       ) : (
         <div className="space-y-5">
           {conversations.map((conversation) => {
-            const athlete =
-              conversation.athlete ||
-              conversation.user ||
-              conversation.participant ||
-              {};
+            // 1. التعامل مع الحالات التي يكون فيها athlete غير معرف أو null
+            const athlete = conversation.athlete || {};
 
-            const athleteId = athlete._id || athlete.id;
+            // 2. معرّف التوجيه: نأخذ ID الرياضي إذا وجد، وإلا نستخدم conversation._id أو lastMessageBy
+            const targetId =
+              athlete._id ||
+              athlete.id ||
+              conversation._id ||
+              conversation.lastMessageBy;
+
+            // 3. اسم الرياضي والعرض
+            const athleteName = athlete.name || "Athlete";
 
             const lastMsgText =
               typeof conversation.lastMessage === "string"
@@ -68,20 +73,20 @@ function CoachChats() {
 
             return (
               <div
-                key={conversation._id || athleteId}
+                key={conversation._id || Math.random()}
                 className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-5"
               >
                 <div className="flex items-start gap-4">
                   <img
                     src={athlete.avatar || "https://i.pravatar.cc/150"}
-                    alt={athlete.name || "Athlete"}
+                    alt={athleteName}
                     className="w-16 h-16 rounded-full object-cover border-2 border-red-500/30"
                   />
 
                   <div>
                     <div className="flex items-center gap-3">
                       <h2 className="text-2xl font-bold text-slate-950 dark:text-white">
-                        {athlete.name || "Unknown Athlete"}
+                        {athleteName}
                       </h2>
 
                       {(conversation.unreadCount || 0) > 0 && (
@@ -106,12 +111,22 @@ function CoachChats() {
                   </div>
                 </div>
 
-                <Link to={`/chat/${athleteId}`}>
-                  <button className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl flex items-center gap-2 font-semibold transition-colors">
+                {targetId ? (
+                  <Link to={`/chat/${targetId}`}>
+                    <button className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl flex items-center gap-2 font-semibold transition-colors">
+                      <MessageCircle size={18} />
+                      Open Chat
+                    </button>
+                  </Link>
+                ) : (
+                  <button
+                    disabled
+                    className="bg-slate-300 dark:bg-slate-800 text-slate-500 px-6 py-3 rounded-xl flex items-center gap-2 font-semibold cursor-not-allowed"
+                  >
                     <MessageCircle size={18} />
-                    Open Chat
+                    Invalid ID
                   </button>
-                </Link>
+                )}
               </div>
             );
           })}

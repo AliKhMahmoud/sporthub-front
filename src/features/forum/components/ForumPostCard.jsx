@@ -28,7 +28,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
 
   const currentUserId = currentUser?._id || currentUser?.id || currentUser?.email;
   const postId = post._id || post.id;
-  const postOwnerId = post.author?._id || post.author?.id || post.authorId;
+  const postOwnerId = post.author?._id || post.author?.id || post.authorId || post.author;
 
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(post.likes?.length || 0);
@@ -38,6 +38,11 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
   const [isEditPostOpen, setIsEditPostOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+
+  // 🟢 عدد التعليقات مع القيمة الافتراضية
+  const [localCommentsCount, setLocalCommentsCount] = useState(
+    post.commentsCount ?? post.comments?.length ?? 0
+  );
 
   const [editPostData, setEditPostData] = useState({
     title: post.title || "",
@@ -49,24 +54,51 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
     postOwnerId &&
     String(postOwnerId) === String(currentUserId);
 
+  // 1️⃣ 🛠️ تعديل: تحديث حالة الإعجابات مع المقارنة المرنة
   useEffect(() => {
     if (post.likes && Array.isArray(post.likes)) {
-      const userLiked = post.likes.some(
-        (like) =>
-          (like._id || like) === currentUserId ||
-          like.toString() === currentUserId
-      );
+      const userLiked = post.likes.some((like) => {
+        if (!like) return false;
+        const likeId = typeof like === "object" ? (like._id || like.id) : like;
+        return String(likeId) === String(currentUserId);
+      });
       setLiked(userLiked);
       setLikesCount(post.likes.length);
     }
   }, [post, currentUserId]);
+
+  // 2️⃣ جلب عدد التعليقات تلقائياً في الخلفية عند تحميل الكارت
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCommentsCount = async () => {
+      try {
+        const data = await getPostComments(postId);
+        const commentsList = data?.data || data || [];
+        if (isMounted && Array.isArray(commentsList)) {
+          setComments(commentsList);
+          setLocalCommentsCount(commentsList.length);
+        }
+      } catch (error) {
+        console.error("Error fetching comments count:", error);
+      }
+    };
+
+    fetchCommentsCount();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [postId]);
 
   const loadComments = async () => {
     setIsLoadingComments(true);
     try {
       const data = await getPostComments(postId);
       const commentsList = data?.data || data || [];
-      setComments(Array.isArray(commentsList) ? commentsList : []);
+      const validComments = Array.isArray(commentsList) ? commentsList : [];
+      
+      setComments(validComments);
+      setLocalCommentsCount(validComments.length);
     } catch (error) {
       console.error("Error loading comments:", error);
       setComments([]);
@@ -80,24 +112,32 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
     await loadComments();
   };
 
+  // 🛠️ تعديل: معالجة الإعجاب مع Optimistic UI
   const toggleLikeHandler = async () => {
     if (!currentUserId) return;
 
+    const previousLiked = liked;
+    const previousCount = likesCount;
+
+    // تحديث فوري بالواجهة
+    setLiked(!previousLiked);
+    setLikesCount((prev) => (previousLiked ? Math.max(0, prev - 1) : prev + 1));
+
     try {
-      if (liked) {
+      if (previousLiked) {
         await unlikePost(postId);
-        setLiked(false);
-        setLikesCount((prev) => Math.max(0, prev - 1));
       } else {
         await likePost(postId);
-        setLiked(true);
-        setLikesCount((prev) => prev + 1);
       }
     } catch (error) {
       console.error("Failed to toggle like:", error);
+      // التراجع للحالة السابقة في حال فشل الـ API
+      setLiked(previousLiked);
+      setLikesCount(previousCount);
     }
   };
 
+  // ─── إضافـة تعليـق جديـد ───
   const addComment = async (event) => {
     event.preventDefault();
 
@@ -109,7 +149,19 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
       });
       const createdComment = response?.data || response;
 
-      setComments((prev) => [createdComment, ...prev]);
+      const formattedComment = {
+        ...createdComment,
+        author:
+          typeof createdComment.author === "object" && createdComment.author !== null
+            ? createdComment.author
+            : {
+                _id: currentUserId,
+                name: currentUser?.name || currentUser?.userName || "You",
+              },
+      };
+
+      setComments((prev) => [formattedComment, ...prev]);
+      setLocalCommentsCount((prev) => prev + 1);
       setCommentText("");
     } catch (error) {
       console.error("Error adding comment:", error);
@@ -117,7 +169,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
     }
   };
 
-  // ─── 1. حذف التعليق ───
+  // ─── حذف التعليق ───
   const deleteCommentHandler = async (commentId) => {
     const isConfirmed = await CustomAlert.confirmDelete(
       "Delete Comment",
@@ -135,6 +187,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
             String(comment._id || comment.id) !== String(commentId)
         )
       );
+      setLocalCommentsCount((prev) => Math.max(0, prev - 1));
       CustomAlert.success("Deleted!", "Comment removed successfully.");
     } catch (error) {
       console.error("Error deleting comment:", error);
@@ -142,13 +195,12 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
     }
   };
 
-  // ─── 2. تعديل التعليق باستخدام CustomAlert.prompt المخصص ───
+  // ─── تعديل التعليق ───
   const editComment = async (commentId) => {
     const currentComment = comments.find(
       (comment) => String(comment._id || comment.id) === String(commentId)
     );
 
-    // استدعاء الدايالوج المخصص بأسلوب المكونات الموحدة
     const newText = await CustomAlert.prompt(
       "Edit Comment",
       "Update your comment text below:",
@@ -157,7 +209,6 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
       "Save Changes"
     );
 
-    // إذا ضغط المستخدم Cancel أو لم يغير النص أو أرسل نصاً فارغاً
     if (newText === null || newText.trim() === "" || newText.trim() === currentComment?.body) return;
 
     try {
@@ -167,11 +218,16 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
       const updatedComment = response?.data || response;
 
       setComments((prev) =>
-        prev.map((comment) =>
-          String(comment._id || comment.id) === String(commentId)
-            ? updatedComment
-            : comment
-        )
+        prev.map((comment) => {
+          if (String(comment._id || comment.id) === String(commentId)) {
+            return {
+              ...comment,
+              ...updatedComment,
+              body: newText.trim(),
+            };
+          }
+          return comment;
+        })
       );
       CustomAlert.success("Updated!", "Comment updated successfully.");
     } catch (error) {
@@ -188,7 +244,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
     });
   };
 
-  // ─── 3. حفظ تعديل المنشور ───
+  // ─── حفظ تعديل المنشور ───
   const savePostEdit = async (event) => {
     event.preventDefault();
     if (!canManagePost || !editPostData.title.trim() || !editPostData.body.trim()) return;
@@ -200,7 +256,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
   return (
     <>
       {/* Card Preview */}
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-red-500 transition flex flex-col justify-between">
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-red-500 transition flex flex-col justify-between h-full">
         <div>
           <div className="flex justify-between items-start gap-4 mb-3">
             <div className="flex-1">
@@ -210,17 +266,17 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
 
               <h2 
                 onClick={openDetailsModal}
-                className="text-2xl font-bold mt-3 mb-3 text-slate-950 dark:text-white cursor-pointer hover:text-red-500 transition"
+                className="text-2xl font-bold mt-3 mb-3 text-slate-950 dark:text-white cursor-pointer hover:text-red-500 transition break-words line-clamp-2"
               >
                 {post.title}
               </h2>
 
-              <p className="text-slate-600 dark:text-slate-400 mb-4 line-clamp-3">
+              <p className="text-slate-600 dark:text-slate-400 mb-4 line-clamp-3 break-words">
                 {post.body}
               </p>
 
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Posted by {post.author?.name || "User"}
+                Posted by {post.author?.name || post.author?.userName || "User"}
               </p>
             </div>
 
@@ -278,7 +334,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
             className="flex items-center gap-2 hover:text-red-500 transition"
           >
             <MessageCircle size={20} />
-            <span>{comments.length}</span>
+            <span>{localCommentsCount}</span>
           </button>
         </div>
       </div>
@@ -338,11 +394,11 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
                 <span className="text-red-500 dark:text-red-400 font-semibold text-sm">
                   {typeof post.sport === "object" ? post.sport?.name : post.sport}
                 </span>
-                <h2 className="text-2xl font-bold text-slate-950 dark:text-white mt-1">
+                <h2 className="text-2xl font-bold text-slate-950 dark:text-white mt-1 break-words">
                   {post.title}
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  Posted by {post.author?.name || "User"}
+                  Posted by {post.author?.name || post.author?.userName || "User"}
                 </p>
               </div>
 
@@ -357,7 +413,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
 
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto py-4 space-y-6">
-              <div className="text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+              <div className="text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 break-words">
                 {post.body}
               </div>
 
@@ -375,7 +431,7 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
                 </button>
                 <div className="flex items-center gap-2">
                   <MessageCircle size={20} />
-                  <span>{comments.length} Comments</span>
+                  <span>{localCommentsCount} Comments</span>
                 </div>
               </div>
 
@@ -412,9 +468,14 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
                 ) : (
                   comments.map((comment) => {
                     const commentId = comment._id || comment.id;
+                    
                     const commentOwnerId =
                       comment.author?._id ||
                       comment.author?.id ||
+                      comment.user?._id ||
+                      comment.user?.id ||
+                      (typeof comment.author === "string" ? comment.author : null) ||
+                      (typeof comment.user === "string" ? comment.user : null) ||
                       comment.userId ||
                       comment.authorId;
 
@@ -422,6 +483,13 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
                       currentUserId &&
                       commentOwnerId &&
                       String(commentOwnerId) === String(currentUserId);
+
+                    const authorName =
+                      comment.author?.name ||
+                      comment.author?.userName ||
+                      comment.user?.name ||
+                      comment.user?.userName ||
+                      (canManageComment ? "You" : "User");
 
                     return (
                       <div
@@ -431,9 +499,9 @@ function ForumPostCard({ post, onDeletePost, onUpdatePost }) {
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
                             <h4 className="font-bold text-red-500 dark:text-red-400 mb-1 text-sm">
-                              {comment.author?.name || "User"}
+                              {authorName}
                             </h4>
-                            <p className="text-slate-700 dark:text-slate-300 text-sm">
+                            <p className="text-slate-700 dark:text-slate-300 text-sm break-words">
                               {comment.body}
                             </p>
                           </div>
