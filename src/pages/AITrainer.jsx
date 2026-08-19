@@ -140,14 +140,6 @@ function AiTrainer() {
     }
   };
 
-  const getProgress = (item) => {
-    if (item.status !== "Approved") return 0;
-    const exercises = item.exercises || [];
-    if (exercises.length === 0) return 0;
-    const completedCount = exercises.filter((ex) => ex.isCompleted).length;
-    return Math.round((completedCount / exercises.length) * 100);
-  };
-
   return (
     <main className="max-w-7xl mx-auto px-6 py-16">
       <h1 className="text-5xl font-extrabold mb-10 text-slate-950 dark:text-white">
@@ -295,6 +287,10 @@ function AiTrainer() {
           ) : (
             myPlans.map((item) => {
               const planId = item._id || item.id;
+              const isPending = item.status === "Pending Coach Review";
+              const isApproved = item.status === "Approved";
+              const isRejected = item.status === "Rejected";
+
               return (
                 <div
                   key={planId}
@@ -312,14 +308,14 @@ function AiTrainer() {
 
                     <span
                       className={
-                        item.status === "Approved"
+                        isApproved
                           ? "text-emerald-500 font-bold"
-                          : item.status === "Rejected"
+                          : isRejected
                           ? "text-red-500 font-bold"
                           : "text-yellow-500 font-bold"
                       }
                     >
-                      {item.status}
+                      {isApproved ? "Approved" : isRejected ? "Rejected" : "Pending Coach Review"}
                     </span>
                   </div>
 
@@ -332,28 +328,46 @@ function AiTrainer() {
                     View Plan Details
                   </button>
 
-                  {item.status !== "Approved" ? (
-                    <div className="mt-5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 rounded-xl p-4 flex items-center gap-3 text-sm">
+                  {/* ✅ ONLY show waiting message if Pending */}
+                  {isPending && (
+                    <div className="mt-5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-400 rounded-xl p-4 flex items-center gap-3 text-sm">
                       <Lock size={18} />
                       Waiting for coach approval before training can begin.
                     </div>
-                  ) : (
+                  )}
+
+                  {/* ✅ Show rejection message if Rejected */}
+                  {isRejected && (
+                    <div className="mt-5 bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 rounded-xl p-4 flex items-center gap-3 text-sm">
+                      <Lock size={18} />
+                      This plan has been rejected by your coach.
+                    </div>
+                  )}
+
+                  {/* ✅ Progress Bar - ONLY show if Approved (from Backend) */}
+                  {isApproved && (
                     <div className="mt-6">
                       <div className="flex justify-between mb-2">
                         <span className="font-semibold text-slate-950 dark:text-white">
                           Progress
                         </span>
                         <span className="font-bold text-red-500">
-                          {getProgress(item)}%
+                          {item.progress || 0}%
                         </span>
                       </div>
 
                       <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-4 overflow-hidden">
-                        <div
-                          className="bg-red-500 h-4 transition-all"
-                          style={{ width: `${getProgress(item)}%` }}
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${item.progress || 0}%` }}
+                          transition={{ duration: 0.5, ease: "easeOut" }}
+                          className="bg-red-500 h-4 rounded-full"
                         />
                       </div>
+
+                      <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
+                        {item.completedExercises || 0} of {item.totalExercises || 0} exercises completed
+                      </p>
                     </div>
                   )}
                 </div>
@@ -375,7 +389,11 @@ function AiTrainer() {
                   {selectedSavedPlan.level} Plan
                 </h2>
                 <p className="text-slate-500 text-sm mt-1">
-                  Status: {selectedSavedPlan.status}
+                  Status: {selectedSavedPlan.status === "Approved" 
+                    ? "Approved ✅" 
+                    : selectedSavedPlan.status === "Rejected" 
+                    ? "Rejected ❌" 
+                    : "Pending ⏳"}
                 </p>
               </div>
 
@@ -388,51 +406,72 @@ function AiTrainer() {
               </button>
             </div>
 
-            <div className="space-y-3">
-              {(selectedSavedPlan.exercises || []).map((ex) => {
-                const planId = selectedSavedPlan._id || selectedSavedPlan.id;
-                const exId = ex._id || ex.id;
+            {/* ✅ ONLY show exercises if Approved */}
+            {selectedSavedPlan.status === "Approved" ? (
+              <div className="space-y-3">
+                {(selectedSavedPlan.exercises || []).map((ex) => {
+                  const planId = selectedSavedPlan._id || selectedSavedPlan.id;
+                  const exId = ex._id || ex.id;
 
-                return (
-                  <div
-                    key={exId}
-                    className="flex items-center justify-between p-4 bg-slate-100 dark:bg-slate-800 rounded-2xl"
-                  >
-                    <div className="flex items-center gap-4">
-                      <img
-                        src={getExerciseImage(ex.name)}
-                        alt={ex.name}
-                        className="w-20 h-16 object-cover rounded-xl"
-                      />
-                      <div>
-                        <h4 className="text-slate-950 dark:text-white font-bold">
-                          {ex.name}
-                        </h4>
-                        <p className="text-slate-500 text-xs">
-                          Sets: {ex.sets} | Reps: {ex.reps}
-                        </p>
+                  return (
+                    <div
+                      key={exId}
+                      className="flex items-center justify-between p-4 bg-slate-100 dark:bg-slate-800 rounded-2xl"
+                    >
+                      <div className="flex items-center gap-4">
+                        <img
+                          src={getExerciseImage(ex.name)}
+                          alt={ex.name}
+                          className="w-20 h-16 object-cover rounded-xl"
+                        />
+                        <div>
+                          <h4 className="text-slate-950 dark:text-white font-bold">
+                            {ex.name}
+                          </h4>
+                          <p className="text-slate-500 text-xs">
+                            Sets: {ex.sets} | Reps: {ex.reps}
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    {selectedSavedPlan.status === "Approved" && (
                       <button
                         type="button"
                         onClick={() => handleToggleExercise(planId, exId)}
                         className={
                           "flex items-center gap-2 px-4 py-2 rounded-xl border transition cursor-pointer text-sm font-semibold " +
-                          (ex.isCompleted
+                          (ex.completed
                             ? "bg-emerald-500/10 border-emerald-500 text-emerald-500"
                             : "bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300")
                         }
                       >
-                        <span>{ex.isCompleted ? "Completed" : "Mark Done"}</span>
-                        {ex.isCompleted && <CheckCircle size={16} />}
+                        <span>{ex.completed ? "Completed" : "Mark Done"}</span>
+                        {ex.completed && <CheckCircle size={16} />}
                       </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl p-8 text-center">
+                <p className="text-slate-600 dark:text-slate-400">
+                  {selectedSavedPlan.status === "Rejected"
+                    ? "This plan has been rejected by your coach. Please create a new plan."
+                    : "Exercises will be available once your coach approves this plan."}
+                </p>
+              </div>
+            )}
+
+            {/* ✅ Coach Feedback - show if exists */}
+            {selectedSavedPlan.coachFeedback && (
+              <div className="mt-6 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-2xl p-6">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-3">
+                  Coach Feedback
+                </h3>
+                <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                  {selectedSavedPlan.coachFeedback}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
