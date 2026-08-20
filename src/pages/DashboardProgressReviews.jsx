@@ -17,12 +17,14 @@ import {
 import { CustomAlert } from "../components/CustomAlert";
 import { getMyTrainees } from "../services/dashboardService";
 import { getAllSports } from "../services/sportsService";
+import { useAuth } from "../context/AuthContext"; // 👈 استدعاء سياق المصادقة لجلب بيانات المدرب
 
 function DashboardProgressReviews() {
+  const { user } = useAuth(); // 👈 جلب بيانات المستخدم الحالية (role, sport)
   const [requests, setRequests] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
 
-  // حالات مودال الإضافة الجديد
+  // حالات مودال الإضافة
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [trainees, setTrainees] = useState([]);
   const [sports, setSports] = useState([]);
@@ -39,6 +41,16 @@ function DashboardProgressReviews() {
     loadDropdownData();
   }, []);
 
+  // 👈 اختيار رياضة الكوتش تلقائياً عند فتح المودال
+  useEffect(() => {
+    if (isAddModalOpen && user?.role === "coach") {
+      const coachSportId = user?.sport?._id || user?.sport;
+      if (coachSportId) {
+        setFormData((prev) => ({ ...prev, sportId: coachSportId }));
+      }
+    }
+  }, [isAddModalOpen, user]);
+
   const loadRequests = async () => {
     try {
       const data = await getAllTraineesProgress();
@@ -52,7 +64,6 @@ function DashboardProgressReviews() {
 
   const loadDropdownData = async () => {
     try {
-      // جلب متدربي الكوتش والرياضات لتغذية الـ Dropdowns
       const traineesRes = await getMyTrainees();
       const sportsRes = await getAllSports();
       setTrainees(traineesRes?.data || traineesRes || []);
@@ -127,7 +138,6 @@ function DashboardProgressReviews() {
           </p>
         </div>
 
-        {/* زر إضافة تقدم جديد مخصص للمدرب */}
         <button
           onClick={() => setIsAddModalOpen(true)}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-4 rounded-2xl transition shadow-lg shrink-0"
@@ -255,13 +265,15 @@ function DashboardProgressReviews() {
               </select>
             </div>
 
+            {/* 🔒 قسم اختيار الرياضة المعدل */}
             <div>
               <label className="block text-slate-400 mb-1">Select Sport</label>
               <select
                 required
+                disabled={user?.role === "coach"} // 👈 تجميد القائمة للمدرب لمنع تغيير الرياضة
                 value={formData.sportId}
                 onChange={(e) => setFormData({ ...formData, sportId: e.target.value })}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white outline-none"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white outline-none disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <option value="">Select Sport...</option>
                 {sports.map((s) => (
@@ -327,7 +339,7 @@ function DashboardProgressReviews() {
         </div>
       )}
 
-      {/* Modal تفاصيل السجل (عرض فقط) */}
+      {/* Modal تفاصيل السجل */}
       {selectedRequest && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-6 z-50">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-3xl w-full max-h-[85vh] overflow-y-auto">

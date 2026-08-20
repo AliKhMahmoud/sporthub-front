@@ -117,10 +117,16 @@ function Forum() {
       await loadPosts(activeCategory, 1);
     } catch (error) {
       console.error("Failed to create post:", error);
-      CustomAlert.error(error, "Failed to Create Post");
+
+      // استخراج الرسالة من errors القادمة من الـ Backend
+      const errorMessage =
+        error.response?.data?.errors?.[0] ||
+        error.response?.data?.message ||
+        "Post description must be at least 10 characters long.";
+
+      CustomAlert.error(errorMessage, "Failed to Create Post");
     }
   };
-
   // ─── 1. دالة تأكيد وحذف المنشور عبر CustomAlert ───
   const deletePost = async (postId) => {
     const isConfirmed = await CustomAlert.confirmDelete(

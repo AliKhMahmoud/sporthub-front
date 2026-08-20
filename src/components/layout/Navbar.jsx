@@ -61,54 +61,63 @@ function Navbar() {
     user?.isAdmin === true;
 
   const getNotificationLink = (notification) => {
-    // 1. إذا كان الإشعار يحتوي على رابط مباشر من الباك إند
-    if (notification.link) {
-      let link = notification.link;
+  // 1. إذا كان الإشعار يحتوي على رابط مباشر من الباك إند
+  if (notification.link) {
+    let link = notification.link;
 
-      // تصحيح رابط المنشورات إذا كان يأتي بصيغة /forum/posts/
-      if (link.includes("/forum/posts/")) {
-        const postId = link.split("/forum/posts/")[1];
-        return `/forum?post=${postId}`;
-      }
-
-      // تصحيح رابط الرسائل
-      if (link.includes("/messages/")) {
-        link = link.replace("/messages/", "/chat/");
-      }
-
-      // تصحيح رابط خطط الذكاء الاصطناعي
-      if (link.includes("/ai-plans")) {
-        link = isCoach ? "/dashboard/ai-plans" : "/ai-trainer";
-      }
-
-      return link;
+    // تصحيح رابط طلبات التدريب ليوجه للداشبورد
+    if (link.includes("/training-requests")) {
+      return "/dashboard";
     }
 
-    // 2. إذا لم يكن هناك رابط مباشر، نعتمد على نوع الإشعار (type)
-    if (notification.type === "message") {
-      if (notification.senderId) {
-        return `/chat/${notification.senderId}`;
-      }
-      return isCoach ? "/dashboard/chats" : "/my-chats";
+    // تصحيح رابط المنشورات إذا كان يأتي بصيغة /forum/posts/
+    if (link.includes("/forum/posts/")) {
+      const postId = link.split("/forum/posts/")[1];
+      return `/forum?post=${postId}`;
     }
 
-    if (notification.type === "like" || notification.type === "comment") {
-      if (notification.postId) {
-        return `/forum?post=${notification.postId}`;
-      }
-      return "/forum";
+    // تصحيح رابط الرسائل
+    if (link.includes("/messages/")) {
+      link = link.replace("/messages/", "/chat/");
     }
 
-    if (notification.type === "plan_review" || notification.type === "ai_plan") {
-      return isCoach ? "/dashboard/ai-plans" : "/ai-trainer";
+    // تصحيح رابط خطط الذكاء الاصطناعي
+    if (link.includes("/ai-plans")) {
+      link = isCoach ? "/dashboard/ai-plans" : "/ai-trainer";
     }
 
-    if (notification.type === "coach_status") {
-      return "/profile";
-    }
+    return link;
+  }
 
-    return "/";
-  };
+  // 2. إذا لم يكن هناك رابط مباشر، نعتمد على نوع الإشعار (type)
+  if (notification.type === "training_request" || notification.type === "subscription") {
+    return "/dashboard";
+  }
+
+  if (notification.type === "message") {
+    if (notification.senderId) {
+      return `/chat/${notification.senderId}`;
+    }
+    return isCoach ? "/dashboard/chats" : "/my-chats";
+  }
+
+  if (notification.type === "like" || notification.type === "comment") {
+    if (notification.postId) {
+      return `/forum?post=${notification.postId}`;
+    }
+    return "/forum";
+  }
+
+  if (notification.type === "plan_review" || notification.type === "ai_plan") {
+    return isCoach ? "/dashboard/ai-plans" : "/ai-trainer";
+  }
+
+  if (notification.type === "coach_status") {
+    return "/profile";
+  }
+
+  return "/";
+};
 
   const loadNotifications = async () => {
     if (!user) {

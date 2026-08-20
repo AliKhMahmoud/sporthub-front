@@ -5,6 +5,7 @@ import SectionTitle from "../components/ui/SectionTitle";
 import { getAllSports, deleteSport } from "../services/sportsService";
 import { useAuth } from "../context/AuthContext";
 import { CustomAlert } from "../components/CustomAlert";
+import { sports as localSports } from "../data/sportsData"; // 👈 استيراد البيانات المحلية الخاصة بالصور
 
 function Sports() {
   const [sports, setSports] = useState([]);
@@ -23,7 +24,23 @@ function Sports() {
     try {
       setLoading(true);
       const data = await getAllSports();
-      setSports(data.data || data);
+      const apiSports = data.data || data;
+
+      // 👈 دمج بيانات الـ API مع الصور المحلية الموجودة في الـ Assets بناءً على اسم الرياضة
+      const mergedSports = apiSports.map((apiSport) => {
+        const localMatch = localSports.find(
+          (loc) => loc.name?.toLowerCase() === apiSport.name?.toLowerCase()
+        );
+
+        return {
+          ...apiSport,
+          // إعطاء الأولوية للصورة من الـ Local Assets إذا وُجدت
+          image: localMatch?.image || apiSport.image,
+          coverImage: localMatch?.coverImage || apiSport.coverImage,
+        };
+      });
+
+      setSports(mergedSports);
     } catch (err) {
       console.error("Error fetching sports:", err);
       setError("Failed to load sports. Please try again later.");

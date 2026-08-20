@@ -37,6 +37,9 @@ function Profile() {
   const isAthlete = currentRole === "athlete";
   const isCoach = currentRole === "coach";
 
+  // التحقق مما إذا كان لدى المتدرب مدرب بالفعل (يمنعه أيضاً من تغيير الرياضة)
+  const hasAssignedCoach = Boolean(profileData?.coach || user?.coach);
+
   // حالات التحميل عند رفع الصور
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -56,7 +59,6 @@ function Profile() {
     height: "",
     weight: "",
     sport: "", // للرياضيين
-    coachSport: "", // للمدربين
   });
 
   const loadProfileData = async () => {
@@ -75,7 +77,6 @@ function Profile() {
         height: userData.profile?.height ?? userData.height ?? "",
         weight: userData.profile?.weight ?? userData.weight ?? "",
         sport: userData.sport?._id || userData.sport?.id || "",
-        coachSport: userData.sport?._id || userData.sport?.id || "",
       });
 
       // 2. جلب قائمة الرياضات
@@ -216,20 +217,12 @@ function Profile() {
         login(updatedUser);
       }
 
-      // 2. تحديث الرياضة (منفصل عن updateProfile)
-      if (isAthlete && formData.sport) {
+      // 2. تحديث الرياضة للرياضي فقط إذا لم يكن لديه مدرب
+      if (isAthlete && !hasAssignedCoach && formData.sport) {
         try {
           await assignSport(formData.sport);
         } catch (sportError) {
           console.error("Error assigning sport:", sportError);
-        }
-      }
-
-      if (isCoach && formData.coachSport) {
-        try {
-          await assignSport(formData.coachSport);
-        } catch (sportError) {
-          console.error("Error assigning coach sport:", sportError);
         }
       }
 
@@ -521,7 +514,8 @@ function Profile() {
                 placeholder="Weight (kg)"
               />
 
-              {isAthlete && (
+              {/* يُعرض فقط للمتدرب الذي ليس لديه مدرب خاص */}
+              {isAthlete && !hasAssignedCoach && (
                 <div>
                   <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-2">
                     Sport
@@ -529,27 +523,6 @@ function Profile() {
                   <select
                     name="sport"
                     value={formData.sport}
-                    onChange={handleChange}
-                    className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-slate-900 dark:text-white"
-                  >
-                    <option value="">Select Sport</option>
-                    {availableSports.map((sport) => (
-                      <option key={sport._id} value={sport._id}>
-                        {sport.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {isCoach && (
-                <div>
-                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-2">
-                    Coach Sport
-                  </label>
-                  <select
-                    name="coachSport"
-                    value={formData.coachSport}
                     onChange={handleChange}
                     className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-red-500 text-slate-900 dark:text-white"
                   >

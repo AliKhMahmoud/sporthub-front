@@ -13,15 +13,15 @@ import { CustomAlert } from "../components/CustomAlert";
 
 function SportsDetails() {
   const { id } = useParams();
-  const { user } = useAuth(); 
+  const { user } = useAuth();
 
   const plansRef = useRef(null);
 
   const [sport, setSport] = useState(null);
   const [loadingSport, setLoadingSport] = useState(true);
-  const [plans, setPlans] = useState([]); 
+  const [plans, setPlans] = useState([]);
   const [selectedPlan, setSelectedPlan] = useState(null);
-  
+
   const [activeProgress, setActiveProgress] = useState(null);
   const [loadingProgress, setLoadingProgress] = useState(false);
 
@@ -29,7 +29,7 @@ function SportsDetails() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentPlanId, setCurrentPlanId] = useState(null);
-  
+
   // حالة الفورم مطابقة لـ Joi Validation
   const [planForm, setPlanForm] = useState({
     title: "",
@@ -50,7 +50,7 @@ function SportsDetails() {
         const response = await getSportById(id);
         const sportData = response.data || response;
         setSport(sportData);
-        
+
         if (sportData) {
           const plansRes = await getPlans(sportData.slug);
           const plansList = plansRes.data || plansRes;
@@ -69,13 +69,12 @@ function SportsDetails() {
   // جلب حالة التقدم عندما يتم اختيار خطة معينة (للرياضي)
   useEffect(() => {
     const fetchActiveProgress = async () => {
-      if (!selectedPlan || user?.role !== 'athlete') return;
+      if (!selectedPlan || user?.role !== "athlete") return;
       try {
         setLoadingProgress(true);
         const res = await getActiveProgress(selectedPlan._id);
         setActiveProgress(res.data || res);
       } catch (error) {
-        // إذا كان الخطأ 404 فهذا طبيعي (لأن المستخدم لم يبدأ الخطة بعد)
         setActiveProgress(null);
       } finally {
         setLoadingProgress(false);
@@ -84,6 +83,20 @@ function SportsDetails() {
 
     fetchActiveProgress();
   }, [selectedPlan, user?.role]);
+
+  // --- التحقق من ملكية الكوتش للرياضة باستخدام user.sport ---
+  const userSportId = typeof user?.sport === "object" ? user?.sport?._id : user?.sport;
+  const currentSportId = sport?._id || id;
+
+  const coachId = typeof sport?.coach === "object" ? sport?.coach?._id : sport?.coach;
+  const createdById = typeof sport?.createdBy === "object" ? sport?.createdBy?._id : sport?.createdBy;
+  const currentUserId = user?._id || user?.id;
+
+  const isOwnerCoach =
+    user?.role === "admin" ||
+    (user?.role === "coach" &&
+      ((userSportId && currentSportId && String(userSportId) === String(currentSportId)) ||
+        (currentUserId && (String(coachId) === String(currentUserId) || String(createdById) === String(currentUserId)))));
 
   // دالة بدء الخطة التدريبية (لرياضي)
   const handleStartWorkout = async () => {
@@ -192,7 +205,7 @@ function SportsDetails() {
     }
   };
 
-  // دالة حذف الخطة باستخدام CustomAlert
+  // دالة حذف الخطة
   const handleDeletePlan = async (planId, e) => {
     e.stopPropagation();
 
@@ -219,7 +232,7 @@ function SportsDetails() {
     }
   };
 
-  // إدارة مصفوفة التمارين داخل نموذج الإضافة/التعديل
+  // إدارة مصفوفة التمارين داخل Form
   const handleExerciseChange = (index, field, value) => {
     const updatedExercises = [...planForm.exercises];
     updatedExercises[index][field] = value;
@@ -257,20 +270,21 @@ function SportsDetails() {
                 <h2 className="text-4xl font-bold">{sport?.name || "Training"} Plans</h2>
                 <p className="text-slate-400 mt-2">{sport?.description}</p>
               </div>
-              
-              {(user?.role === 'coach' || user?.role === 'admin') && (
+
+              {/* يظهر الزر فقط إذا كان المستخدم أدمن أو الكوتش المالك لهذه الرياضة */}
+              {isOwnerCoach && (
                 <Button onClick={handleOpenAddModal} className="flex items-center gap-2 bg-red-600 hover:bg-red-700">
                   <Plus size={20} /> Add New Plan
                 </Button>
               )}
             </div>
 
-            {/* عرض الخطط أو رسالة توضيحية في حال كانت القائمة فارغة */}
+            {/* عرض الخطط */}
             {plans.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {plans.map((plan) => (
-                  <div 
-                    key={plan._id} 
+                  <div
+                    key={plan._id}
                     onClick={() => setSelectedPlan(plan)}
                     className="bg-slate-800 rounded-2xl p-6 border border-slate-700 hover:border-red-500 transition cursor-pointer flex flex-col justify-between"
                   >
@@ -279,27 +293,28 @@ function SportsDetails() {
                         <span className="text-red-400 font-semibold capitalize text-sm bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20">
                           {plan.level}
                         </span>
-                        
-                        {(user?.role === 'coach' || user?.role === 'admin') && (
+
+                        {/* أزرار التعديل والحذف تظهر فقط للمدرب المسؤول عن هذه الرياضة */}
+                        {isOwnerCoach && (
                           <div className="flex gap-2">
-                            <button 
-                              onClick={(e) => handleOpenEditModal(plan, e)} 
+                            <button
+                              onClick={(e) => handleOpenEditModal(plan, e)}
                               className="text-slate-400 hover:text-white p-1 transition"
                               title="Edit Plan"
                             >
-                              <Edit size={18}/>
+                              <Edit size={18} />
                             </button>
-                            <button 
-                              onClick={(e) => handleDeletePlan(plan._id, e)} 
+                            <button
+                              onClick={(e) => handleDeletePlan(plan._id, e)}
                               className="text-slate-400 hover:text-red-500 p-1 transition"
                               title="Delete Plan"
                             >
-                              <Trash2 size={18}/>
+                              <Trash2 size={18} />
                             </button>
                           </div>
                         )}
                       </div>
-                      
+
                       <h3 className="text-2xl font-bold my-3">{plan.title}</h3>
                       <p className="text-slate-400 mb-5 line-clamp-2 text-sm">{plan.description}</p>
                     </div>
@@ -316,7 +331,7 @@ function SportsDetails() {
             ) : (
               <div className="text-center py-12 bg-slate-800/40 rounded-2xl border border-slate-800">
                 <p className="text-slate-400 text-lg">No training plans available for this sport yet.</p>
-                {(user?.role === 'coach' || user?.role === 'admin') && (
+                {isOwnerCoach && (
                   <p className="text-slate-500 text-sm mt-1">Click the button above to add the first plan.</p>
                 )}
               </div>
@@ -324,7 +339,7 @@ function SportsDetails() {
           </div>
         </section>
 
-        {/* عرض تفاصيل الخطة المحددة وإدارة التمارين */}
+        {/* عرض تفاصيل الخطة المحددة */}
         {selectedPlan && (
           <div className="mt-10 bg-slate-900 border border-slate-800 rounded-3xl p-8">
             <div className="flex justify-between items-center mb-6">
@@ -333,21 +348,23 @@ function SportsDetails() {
                 <X size={24} />
               </button>
             </div>
-            
-            <p className="text-slate-300 mb-2">{selectedPlan.description}</p>
-            <p className="text-sm text-red-400 font-medium mb-6">Level: {selectedPlan.level} | Duration: {selectedPlan.durationWeeks} weeks</p>
 
-            {user?.role === 'athlete' && !activeProgress && (
+            <p className="text-slate-300 mb-2">{selectedPlan.description}</p>
+            <p className="text-sm text-red-400 font-medium mb-6">
+              Level: {selectedPlan.level} | Duration: {selectedPlan.durationWeeks} weeks
+            </p>
+
+            {user?.role === "athlete" && !activeProgress && (
               <Button onClick={handleStartWorkout} className="bg-red-600 hover:bg-red-700">
                 Begin Workout Plan
               </Button>
             )}
 
-            {activeProgress && user?.role === 'athlete' && (
+            {activeProgress && user?.role === "athlete" && (
               <div className="mt-6">
                 <div className="flex justify-between items-center mb-4">
                   <span className="text-lg font-semibold">Progress: {activeProgress.progressPercentage}%</span>
-                  <button 
+                  <button
                     onClick={handleRestartWorkout}
                     className="flex items-center gap-2 text-sm text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/50 px-3 py-1.5 rounded-xl transition"
                     title="Restart Plan"
@@ -356,8 +373,8 @@ function SportsDetails() {
                   </button>
                 </div>
                 <div className="w-full bg-slate-800 h-3 rounded-full mb-6 overflow-hidden">
-                  <div 
-                    className="bg-red-500 h-full transition-all duration-300" 
+                  <div
+                    className="bg-red-500 h-full transition-all duration-300"
                     style={{ width: `${activeProgress.progressPercentage}%` }}
                   ></div>
                 </div>
@@ -367,18 +384,18 @@ function SportsDetails() {
                   {selectedPlan.exercises?.map((ex, index) => {
                     const isCompleted = activeProgress.completedExercises?.includes(ex.name);
                     return (
-                      <div 
-                        key={index} 
+                      <div
+                        key={index}
                         onClick={() => handleToggleExercise(ex.name)}
                         className={`flex justify-between items-center p-4 rounded-xl border cursor-pointer transition ${
-                          isCompleted ? 'bg-red-950/30 border-red-500' : 'bg-slate-800 border-slate-700 hover:border-slate-600'
+                          isCompleted ? "bg-red-950/30 border-red-500" : "bg-slate-800 border-slate-700 hover:border-slate-600"
                         }`}
                       >
                         <div>
                           <h5 className="font-bold text-lg">{ex.name}</h5>
                           <p className="text-sm text-slate-400">Sets: {ex.sets} | Reps: {ex.reps}</p>
                         </div>
-                        <CheckCircle className={isCompleted ? 'text-red-500' : 'text-slate-600'} size={24} />
+                        <CheckCircle className={isCompleted ? "text-red-500" : "text-slate-600"} size={24} />
                       </div>
                     );
                   })}
@@ -386,7 +403,7 @@ function SportsDetails() {
               </div>
             )}
 
-            {user?.role !== 'athlete' && (
+            {user?.role !== "athlete" && (
               <div className="mt-6">
                 <h4 className="text-xl font-semibold mb-4">Exercises List:</h4>
                 <div className="space-y-3">
@@ -402,7 +419,7 @@ function SportsDetails() {
           </div>
         )}
 
-        {/* نافذة (Modal) إضافة أو تعديل خطة */}
+        {/* Modal الإضافة والتعديل */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -423,10 +440,10 @@ function SportsDetails() {
               <form onSubmit={handleSavePlan} className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium mb-2">Title</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     required
-                    value={planForm.title} 
+                    value={planForm.title}
                     onChange={(e) => setPlanForm({ ...planForm, title: e.target.value })}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-red-500"
                     placeholder="e.g. Advanced Muscle Building"
@@ -435,10 +452,10 @@ function SportsDetails() {
 
                 <div>
                   <label className="block text-sm font-medium mb-2">Description</label>
-                  <textarea 
+                  <textarea
                     rows="3"
                     required
-                    value={planForm.description} 
+                    value={planForm.description}
                     onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-red-500"
                     placeholder="Plan description..."
@@ -448,8 +465,8 @@ function SportsDetails() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">Level</label>
-                    <select 
-                      value={planForm.level} 
+                    <select
+                      value={planForm.level}
                       onChange={(e) => setPlanForm({ ...planForm, level: e.target.value })}
                       className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-red-500"
                     >
@@ -461,12 +478,12 @@ function SportsDetails() {
 
                   <div>
                     <label className="block text-sm font-medium mb-2">Duration (Weeks)</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       min="1"
                       max="52"
                       required
-                      value={planForm.durationWeeks} 
+                      value={planForm.durationWeeks}
                       onChange={(e) => setPlanForm({ ...planForm, durationWeeks: Number(e.target.value) })}
                       className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-red-500"
                     />
@@ -484,30 +501,30 @@ function SportsDetails() {
                   <div className="space-y-3">
                     {planForm.exercises.map((ex, index) => (
                       <div key={index} className="flex gap-2 items-center bg-slate-800/50 p-3 rounded-xl border border-slate-700">
-                        <input 
-                          type="text" 
-                          placeholder="Exercise Name" 
+                        <input
+                          type="text"
+                          placeholder="Exercise Name"
                           required
                           value={ex.name}
-                          onChange={(e) => handleExerciseChange(index, 'name', e.target.value)}
+                          onChange={(e) => handleExerciseChange(index, "name", e.target.value)}
                           className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white"
                         />
-                        <input 
-                          type="number" 
-                          placeholder="Sets" 
+                        <input
+                          type="number"
+                          placeholder="Sets"
                           min="1"
                           required
                           value={ex.sets}
-                          onChange={(e) => handleExerciseChange(index, 'sets', Number(e.target.value))}
+                          onChange={(e) => handleExerciseChange(index, "sets", Number(e.target.value))}
                           className="w-20 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white"
                         />
-                        <input 
-                          type="number" 
-                          placeholder="Reps" 
+                        <input
+                          type="number"
+                          placeholder="Reps"
                           min="1"
                           required
                           value={ex.reps}
-                          onChange={(e) => handleExerciseChange(index, 'reps', Number(e.target.value))}
+                          onChange={(e) => handleExerciseChange(index, "reps", Number(e.target.value))}
                           className="w-20 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white"
                         />
                         {planForm.exercises.length > 1 && (
@@ -532,7 +549,6 @@ function SportsDetails() {
             </div>
           </div>
         )}
-
       </Container>
     </main>
   );
