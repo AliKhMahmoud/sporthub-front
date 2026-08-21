@@ -342,7 +342,7 @@ function Profile() {
                 <div className="flex gap-4 mt-3 text-sm font-medium text-slate-600 dark:text-slate-400">
                   {(profileData?.profile?.height || profileData?.height) && (
                     <span>
-                      Height:{" "}
+                      Heights:{" "}
                       <strong className="text-slate-900 dark:text-white">
                         {profileData.profile?.height || profileData.height} cm
                       </strong>
