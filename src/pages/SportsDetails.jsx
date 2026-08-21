@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { CheckCircle, X, Edit, Trash2, Plus, AlertCircle, RotateCcw } from "lucide-react";
 
@@ -97,6 +97,24 @@ function SportsDetails() {
     (user?.role === "coach" &&
       ((userSportId && currentSportId && String(userSportId) === String(currentSportId)) ||
         (currentUserId && (String(coachId) === String(currentUserId) || String(createdById) === String(currentUserId)))));
+
+  // --- فلترة الخطط لعرض الخطط الخاصة بمدرب المتدرب فقط ---
+  const visiblePlans = useMemo(() => {
+    if (!plans || !Array.isArray(plans)) return [];
+
+    // إذا كان المستخدم رياضياً ولديه مدرب خاص به
+    if (user?.role === "athlete" && user?.coach) {
+      const athleteCoachId = typeof user.coach === "object" ? user.coach._id || user.coach.id : user.coach;
+
+      return plans.filter((plan) => {
+        const planCoachId = typeof plan.createdBy === "object" ? plan.createdBy?._id || plan.createdBy?.id : plan.createdBy;
+        return String(planCoachId) === String(athleteCoachId);
+      });
+    }
+
+    // إذا كان مدرباً أو أدمن، يتم عرض كافة الخطط
+    return plans;
+  }, [plans, user]);
 
   // دالة بدء الخطة التدريبية (لرياضي)
   const handleStartWorkout = async () => {
@@ -279,10 +297,10 @@ function SportsDetails() {
               )}
             </div>
 
-            {/* عرض الخطط */}
-            {plans.length > 0 ? (
+            {/* عرض الخطط المفلترة */}
+            {visiblePlans.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {plans.map((plan) => (
+                {visiblePlans.map((plan) => (
                   <div
                     key={plan._id}
                     onClick={() => setSelectedPlan(plan)}
